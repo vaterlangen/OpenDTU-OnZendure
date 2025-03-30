@@ -329,7 +329,7 @@ void LocalMqttProvider::onMqttMessageLog(espMqttClientTypes::MessageProperties c
 
     // some devices have different log structure - only process for devices explicitly enabled!
     if (_full_log_supported) {
-        _stats->setVoltage(v[ZENDURE_LOG_OFFSET_VOLTAGE].as<float>() / 10.0, ms);
+        _stats->setVoltage(v[ZENDURE_LOG_OFFSET_INPUT_VOLTAGE].as<float>() / 10.0, ms);
 
         _stats->setAutoRecover(v[ZENDURE_LOG_OFFSET_AUTO_RECOVER].as<uint8_t>());
         _stats->setSocMin(v[ZENDURE_LOG_OFFSET_MIN_SOC].as<float>());
