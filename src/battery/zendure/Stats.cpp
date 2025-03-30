@@ -13,10 +13,11 @@ void Stats::getLiveViewData(JsonVariant& root) const
 
     // values go into the "Status" card of the web application
     std::string section("status");
-    addLiveViewInSection(root, section, "totalInputPower", _input_power, "W", 0, false);
+    addLiveViewInSection(root, section, "totalInputPower", getInputPower(), "W", 0, false);
     addLiveViewInSection(root, section, "chargePower", _charge_power, "W", 0);
     addLiveViewInSection(root, section, "dischargePower", _discharge_power, "W", 0);
     addLiveViewInSection(root, section, "totalOutputPower", _output_power, "W", 0);
+    addLiveViewInSection(root, section, "outputVoltage", _output_voltage, "V", 2);
     addLiveViewInSection(root, section, "efficiency", _efficiency, "%", 3);
     addLiveViewInSection(root, section, "batteries", _num_batteries, "", 0);
     addLiveViewInSection(root, section, "capacity", _capacity, "Wh", 0, false);
@@ -50,13 +51,6 @@ void Stats::getLiveViewData(JsonVariant& root) const
     addLiveViewBooleanInSection(root, section, "autoShutdown", _auto_shutdown);
     addLiveViewTextInSection(root, section, "bypassMode", std::string(bypassModeToString(_bypass_mode)));
     addLiveViewBooleanInSection(root, section, "buzzer", _buzzer);
-
-    // values go into the "Solar Panels" card of the web application
-    if (config.Battery.Zendure.ConnectionType != BatteryZendureConfig::ConnectionType_t::ZendureMqtt && (_solar_power_1.has_value() || _solar_power_2.has_value())) {
-        section = "panels";
-        addLiveViewInSection(root, section, "solarInputPower1", _solar_power_1, "W", 0, false);
-        addLiveViewInSection(root, section, "solarInputPower2", _solar_power_2, "W", 0, false);
-    }
 
     // pack data goes to dedicated cards of the web application
     char buff[30];
@@ -129,10 +123,10 @@ void Stats::mqttPublish() const
         publish("battery/" + id + "/capacity", value->_capacity);
     }
 
-    publish("battery/solarPowerMppt1", _solar_power_1);
-    publish("battery/solarPowerMppt2", _solar_power_2);
+    publish("battery/solarPowerMppt1", getSolarPower(SmartBufferStats::MPPT::Number_1));
+    publish("battery/solarPowerMppt2", getSolarPower(SmartBufferStats::MPPT::Number_2));
     publish("battery/outputPower", _output_power);
-    publish("battery/inputPower", _input_power);
+    publish("battery/inputPower", getInputPower());
     publish("battery/bypass", boolToString(_bypass_state));
     publish("battery/lastFullCharge", _last_full_hours);
     publish("battery/lastEmpty", _last_empty_hours);
