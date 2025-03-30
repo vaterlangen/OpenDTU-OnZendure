@@ -184,7 +184,7 @@ void ZendureMqttProvider::processProperties(std::optional<JsonObjectConst>& prop
         _stats->_num_batteries = *num_batteries;
     }
 
-    _stats->updateSolarInputPower(Utils::getJsonElement<uint16_t>(*props, ZENDURE_REPORT_SOLAR_INPUT_POWER));
+    //_stats->updateSolarInputPower(Utils::getJsonElement<uint16_t>(*props, ZENDURE_REPORT_SOLAR_INPUT_POWER));
 }
 
 void ZendureMqttProvider::processPackDataJson(JsonVariantConst& packDataJson, const String& serial, const uint64_t timestamp)
