@@ -1,6 +1,7 @@
 #include <functional>
 #include <Configuration.h>
 #include <battery/zendure/Provider.h>
+#include <battery/SmartBufferStats.h>
 #include <MqttSettings.h>
 #include <SunPosition.h>
 #include <Utils.h>
@@ -487,12 +488,12 @@ void Provider::processProperties(std::optional<JsonObjectConst>& props, const ui
 
     auto solar_power_1 = Utils::getJsonElement<uint16_t>(*props, ZENDURE_REPORT_SOLAR_POWER_MPPT_1);
     if (solar_power_1.has_value()) {
-        _stats->setSolarPower1(*solar_power_1);
+        _stats->setSolarPower(SmartBufferStats::MPPT::Number_1, *solar_power_1);
     }
 
     auto solar_power_2 = Utils::getJsonElement<uint16_t>(*props, ZENDURE_REPORT_SOLAR_POWER_MPPT_2);
     if (solar_power_2.has_value()) {
-        _stats->setSolarPower2(*solar_power_2);
+        _stats->setSolarPower(SmartBufferStats::MPPT::Number_2, *solar_power_2);
     }
 
     auto bypass_mode = Utils::getJsonElement<uint8_t>(*props, ZENDURE_REPORT_BYPASS_MODE);
@@ -642,14 +643,11 @@ void Provider::calculatePackStats(const uint64_t timestamp)
     _stats->_cellMinMilliVolt = cellMin;
     _stats->_cellMaxMilliVolt = cellMax;
     _stats->_cellTemperature = cellTemp;
-
-    _stats->_capacity = capacity;
-    _stats->_capacity_avail = capacity_avail;
 }
 
 void Provider::calculateEfficiency()
 {
-    float in = static_cast<float>(_stats->_input_power.value_or(0));
+    float in = static_cast<float>(_stats->getSolarPowerOverall().value_or(0));
     float out = static_cast<float>(_stats->_output_power.value_or(0));
     float efficiency = 0.0;
 
