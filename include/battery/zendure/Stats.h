@@ -2,7 +2,7 @@
 #pragma once
 
 #include <MqttSettings.h>
-#include <battery/Stats.h>
+#include <battery/SmartBufferStats.h>
 #include <battery/zendure/Constants.h>
 #include <solarcharger/Controller.h>
 #include <solarcharger/smartbufferbatteries/Provider.h>
@@ -66,7 +66,7 @@ static constexpr frozen::map<ControlState, const char*, 2> _controlStateStrings 
 
 class PackStats;
 
-class Stats : public ::Batteries::Stats {
+class Stats : public ::Batteries::SmartBufferStats {
     friend class Provider;
     friend class LocalMqttProvider;
     friend class ZendureMqttProvider;
@@ -190,7 +190,7 @@ public:
     void mqttPublish() const final;
 
     std::optional<String> getHassDeviceName() const final {
-        return String(*getManufacturer() + " " + _device);
+        return String(*getManufacturer() + " " + _device.value_or(String()));
     }
 
     bool supportsAlarmsAndWarnings() const final { return false; }
@@ -206,6 +206,9 @@ public:
         return state > 2 ? State::Invalid : static_cast<State>(state);
     }
 
+    virtual std::optional<String> const& getDeviceName() const { return _device; }
+    virtual size_t getNumberMppts() const { return ZENDURE_NUM_MPPTS; };
+
 protected:
     std::shared_ptr<PackStats> getPackData(size_t index) const;
     std::shared_ptr<PackStats> addPackData(size_t index, String serial);
@@ -218,26 +221,27 @@ protected:
     };
 
     void detectDeviceFromSerial(const bool force = false) {
-        if (_serial.length() != 15) { return; }
-        if (!_device.isEmpty() && !force) { return; }
+        const auto sn = _serial.value_or(String());
+        if (sn.length() != 15) { return; }
+        if (_device.has_value() && !force) { return; }
 
-        if (_serial.startsWith("PO1H")) {
+        if (sn.startsWith("PO1H")) {
             _device = ZENDURE_HUB1200_NAME;
             return;
         }
-        if (_serial.startsWith("HO1H")) {
+        if (sn.startsWith("HO1H")) {
             _device = ZENDURE_HUB2000_NAME;
             return;
         }
-        if (_serial.startsWith("R04Y")) {
+        if (sn.startsWith("R04Y")) {
             _device = ZENDURE_AIO2400_NAME;
             return;
         }
-        if (_serial.startsWith("FE1H")) {
+        if (sn.startsWith("FE1H")) {
             _device = ZENDURE_ACE1500_NAME;
             return;
         }
-        if (_serial.startsWith("EE1L")) {
+        if (sn.startsWith("EE1L")) {
             _device = ZENDURE_HYPER2000_NAME;
             return;
         }
@@ -266,8 +270,9 @@ private:
     }
 
     void setHardwareVersion(std::optional<uint32_t> number) {
+        auto dev = _device.value_or("UNKOWN");
         if (_hwversion.isEmpty()) {
-            _hwversion = _device;
+            _hwversion = dev;
         }
 
         if (!number.has_value()) { return; }
@@ -275,7 +280,7 @@ private:
         auto version = parseVersion(number);
         if (version.isEmpty()) { return; }
 
-        _hwversion = _device + " (" + version + ")";
+        _hwversion = dev + " (" + version + ")";
     }
 
     inline void setFirmwareVersion(std::optional<uint32_t> number) {
@@ -307,7 +312,7 @@ private:
 
         // Doe we need to add our charger, first?
         if (!mppt->hasDevice(_solarcharger_id)) {
-            _solarcharger_id = mppt->addDevice(*getManufacturer(), _device, *getSerial(), ZENDURE_NUM_MPPTS);
+            _solarcharger_id = mppt->addDevice(getManufacturer(), _device, getSerial(), ZENDURE_NUM_MPPTS);
         }
 
         return mppt;
@@ -372,12 +377,12 @@ private:
 
     inline void setSolarVoltage1(const float voltage) {
         _solar_voltage_1 = voltage;
-        updateSolarInputVoltage(1, voltage);
+        setMpptVoltage(1, voltage);
     }
 
     inline void setSolarVoltage2(const float voltage) {
         _solar_voltage_2 = voltage;
-        updateSolarInputVoltage(2, voltage);
+        setMpptVoltage(2, voltage);
     }
 
     inline void setOutputVoltage(const float voltage) {
@@ -427,9 +432,10 @@ private:
     }
 
 
-    String _device = String();
+    std::optional<String> _device = std::nullopt;
 
     std::map<size_t, std::shared_ptr<PackStats>> _packData = std::map<size_t, std::shared_ptr<PackStats> >();
+
     std::optional<uint32_t> _solarcharger_id = std::nullopt;
 
     std::optional<float> _cellTemperature = std::nullopt;
@@ -532,7 +538,7 @@ class PackStats {
 
     protected:
         explicit PackStats(String serial, String name, uint16_t capacity, uint8_t cellCount = 15) :
-            _serial(serial), _name(name), _capacity(capacity), _cellCount(cellCount) {}
+            _serial(serial), _name(name), _capacity(capacity), _cellCount(cellCount), _capacity_avail(capacity) {}
         void setSerial(String serial) { _serial = serial; }
         void setHwVersion(String&& version) { _hwversion = std::move(version); }
         void setFwVersion(String&& version) { _fwversion = std::move(version); }
