@@ -321,22 +321,10 @@ private:
     inline void updateSolarInputPower(const size_t num, const float power) {
         if (!_solar_power_1.has_value() && !_solar_power_2.has_value()) {
             _input_power.reset();
-            return;
+        }else{
+            _input_power = _solar_power_1.value_or(0.0) + _solar_power_2.value_or(0.0);
         }
-
-        _input_power = _solar_power_1.value_or(0) + _solar_power_2.value_or(0);
-
-        auto mppt = getSolarCharger();
-        if (mppt != nullptr) {
-            mppt->setMpptPower(_solarcharger_id, num, power, millis());;
-        }
-    }
-
-    inline void updateSolarInputVoltage(const size_t num, const float voltage) {
-        auto mppt = getSolarCharger();
-        if (mppt != nullptr) {
-            mppt->setMpptVoltage(_solarcharger_id, num, voltage, millis());
-        }
+        setMpptPower(num, power);
     }
 
     inline void setSolarPower1(const uint16_t power) {
