@@ -22,7 +22,9 @@ void HassIntegration::publishSensors() const
     publishSensor("State", NULL, "state");
     publishSensor("Number of Batterie Packs", "mdi:counter", "numPacks");
     publishSensor("Efficiency", NULL, "efficiency", NULL, "measurement", "%");
-    publishSensor("Last Full Charge", "mdi:timelapse", "lastFullCharge", NULL, NULL, "h");
+    publishSensor("Last Full", "mdi:timelapse", "lastFull", NULL, NULL, "h");
+    publishSensor("Last Empty", "mdi:timelapse", "lastEmpty", NULL, NULL, "h");
+    publishSensor("Charge Through State", NULL, "chargeThroughState");
 
     publishSensor("Solar Power MPPT 1", "mdi:solar-power", "solarPowerMppt1", "power", "measurement", "W");
     publishSensor("Solar Power MPPT 2", "mdi:solar-power", "solarPowerMppt2", "power", "measurement", "W");
@@ -52,6 +54,9 @@ void HassIntegration::publishSensors() const
         publishSensor(String(bat + "State Of Health").c_str(), NULL, String(id + "/stateOfHealth").c_str(), NULL, "measurement", "%", false);
         publishSensor(String(bat + "State").c_str(), NULL, String(id + "/state").c_str(), NULL, NULL, NULL, false);
     }
+
+    // remove legacy sensors from HA
+    removeSensor("Last Full Charge");
 }
 
 } // namespace Batteries::Zendure
