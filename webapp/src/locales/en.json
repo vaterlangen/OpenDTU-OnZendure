@@ -613,7 +613,7 @@
         "Provider": "Data Provider",
         "ProviderVeDirect": "Victron MPPT(s) using VE.Direct interface",
         "ProviderMqtt": "Solar Charger data from MQTT broker",
-        "ProviderSmartBufferBattery": "MPPT data from Smart Buffer Batteries",
+        "ProviderIntegrated": "MPPT data from Smart Buffer Batteries",
         "VerboseLogging": "@:base.VerboseLogging",
         "MqttPublishUpdatesOnly": "Publish values to MQTT only when they change",
         "CalculateOutputPower": "Calculate Solar Charger output power",

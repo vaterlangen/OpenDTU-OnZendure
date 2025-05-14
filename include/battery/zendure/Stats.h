@@ -74,6 +74,10 @@ public:
     virtual std::optional<String> const& getDeviceName() const { return _device; }
     virtual size_t getNumberMppts() const { return ZENDURE_NUM_MPPTS; };
 
+    inline std::optional<float> getInputPower() const {
+        return getSolarPowerOverall();
+    }
+
 protected:
     std::shared_ptr<PackStats> getPackData(size_t index) const;
     std::shared_ptr<PackStats> addPackData(size_t index, String serial);
@@ -103,21 +107,6 @@ private:
         _device = std::move(device);
     }
 
-    inline void updateSolarInputPower(const size_t num, const float power) {
-        _input_power = _solar_power_1 + _solar_power_2;
-        setMpptPower(num, power);
-    }
-
-    inline void setSolarPower1(const uint16_t power) {
-        _solar_power_1 = power;
-        updateSolarInputPower(1, power);
-    }
-
-    inline void setSolarPower2(const uint16_t power) {
-        _solar_power_2 = power;
-        updateSolarInputPower(2, power);
-    }
-
     void setChargePower(const uint16_t power) {
         _charge_power = power;
 
@@ -140,16 +129,6 @@ private:
 
     inline void setOutputPower(const uint16_t power) {
         _output_power = power;
-    }
-
-    inline void setSolarVoltage1(const float voltage) {
-        _solar_voltage_1 = voltage;
-        setMpptVoltage(1, voltage);
-    }
-
-    inline void setSolarVoltage2(const float voltage) {
-        _solar_voltage_2 = voltage;
-        setMpptVoltage(2, voltage);
     }
 
     inline void setOutputVoltage(const float voltage) {
@@ -182,12 +161,7 @@ private:
     uint16_t _charge_power = 0;
     uint16_t _discharge_power = 0;
     uint16_t _output_power = 0;
-    uint16_t _input_power = 0;
-    uint16_t _solar_power_1 = 0;
-    uint16_t _solar_power_2 = 0;
 
-    float _solar_voltage_1 = 0.0;
-    float _solar_voltage_2 = 0.0;
     float _output_voltage = 0.0;
 
     uint16_t _charge_power_cycle = 0;
