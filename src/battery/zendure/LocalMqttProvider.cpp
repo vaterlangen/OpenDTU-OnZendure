@@ -329,7 +329,9 @@ void LocalMqttProvider::onMqttMessageLog(espMqttClientTypes::MessageProperties c
 
     // some devices have different log structure - only process for devices explicitly enabled!
     if (_full_log_supported) {
-        _stats->setVoltage(v[ZENDURE_LOG_OFFSET_INPUT_VOLTAGE].as<float>() / 10.0, ms);
+        _stats->setOutputVoltage(v[ZENDURE_LOG_OFFSET_INPUT_VOLTAGE].as<float>() / 10.0);
+        _stats->setSolarVoltage(SmartBufferStats::MPPT::Number_1, v[ZENDURE_LOG_OFFSET_SOLAR_VOLTAGE_MPPT_1].as<float>() / 10.0);
+        _stats->setSolarVoltage(SmartBufferStats::MPPT::Number_2, v[ZENDURE_LOG_OFFSET_SOLAR_VOLTAGE_MPPT_1].as<float>() / 10.0);
 
         _stats->setAutoRecover(v[ZENDURE_LOG_OFFSET_AUTO_RECOVER].as<uint8_t>());
         _stats->setSocMin(v[ZENDURE_LOG_OFFSET_MIN_SOC].as<float>());
@@ -338,8 +340,8 @@ void LocalMqttProvider::onMqttMessageLog(espMqttClientTypes::MessageProperties c
         _stats->setOutputPower(v[ZENDURE_LOG_OFFSET_OUTPUT_POWER].as<uint16_t>());
         _stats->setChargePower(v[ZENDURE_LOG_OFFSET_CHARGE_POWER].as<uint16_t>());
         _stats->setDischargePower(v[ZENDURE_LOG_OFFSET_DISCHARGE_POWER].as<uint16_t>());
-        _stats->setSolarPower1(v[ZENDURE_LOG_OFFSET_SOLAR_POWER_MPPT_1].as<uint16_t>());
-        _stats->setSolarPower2(v[ZENDURE_LOG_OFFSET_SOLAR_POWER_MPPT_2].as<uint16_t>());
+        _stats->setSolarPower(SmartBufferStats::MPPT::Number_1, v[ZENDURE_LOG_OFFSET_SOLAR_POWER_MPPT_1].as<uint16_t>());
+        _stats->setSolarPower(SmartBufferStats::MPPT::Number_2, v[ZENDURE_LOG_OFFSET_SOLAR_POWER_MPPT_2].as<uint16_t>());
     }
 
     _stats->_lastUpdate = ms;

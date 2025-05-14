@@ -5,8 +5,8 @@
 #include <battery/SmartBufferStats.h>
 #include <battery/zendure/Constants.h>
 #include <solarcharger/Controller.h>
-#include <solarcharger/smartbufferbatteries/Provider.h>
-#include <solarcharger/smartbufferbatteries/Stats.h>
+#include <solarcharger/integrated/Provider.h>
+#include <solarcharger/integrated/Stats.h>
 #include <map>
 #include <optional>
 #include <Configuration.h>
@@ -209,6 +209,10 @@ public:
     virtual std::optional<String> const& getDeviceName() const { return _device; }
     virtual size_t getNumberMppts() const { return ZENDURE_NUM_MPPTS; };
 
+    inline std::optional<float> getInputPower() const {
+        return getSolarPowerOverall();
+    }
+
 protected:
     std::shared_ptr<PackStats> getPackData(size_t index) const;
     std::shared_ptr<PackStats> addPackData(size_t index, String serial);
@@ -303,40 +307,6 @@ private:
         _device = std::move(device);
     }
 
-    std::shared_ptr<SolarChargers::SmartBufferBatteries::Stats> getSolarCharger() {
-        auto mppt = SolarCharger.getSmartBufferBatteryStats();
-
-        if (mppt == nullptr) {
-            return nullptr;
-        }
-
-        // Doe we need to add our charger, first?
-        if (!mppt->hasDevice(_solarcharger_id)) {
-            _solarcharger_id = mppt->addDevice(getManufacturer(), _device, getSerial(), ZENDURE_NUM_MPPTS);
-        }
-
-        return mppt;
-    }
-
-    inline void updateSolarInputPower(const size_t num, const float power) {
-        if (!_solar_power_1.has_value() && !_solar_power_2.has_value()) {
-            _input_power.reset();
-        }else{
-            _input_power = _solar_power_1.value_or(0.0) + _solar_power_2.value_or(0.0);
-        }
-        setMpptPower(num, power);
-    }
-
-    inline void setSolarPower1(const uint16_t power) {
-        _solar_power_1 = power;
-        updateSolarInputPower(1, power);
-    }
-
-    inline void setSolarPower2(const uint16_t power) {
-        _solar_power_2 = power;
-        updateSolarInputPower(2, power);
-    }
-
     void setChargePower(const uint16_t power) {
         _charge_power = power;
 
@@ -361,16 +331,6 @@ private:
 
     inline void setOutputPower(const uint16_t power) {
         _output_power = power;
-    }
-
-    inline void setSolarVoltage1(const float voltage) {
-        _solar_voltage_1 = voltage;
-        setMpptVoltage(1, voltage);
-    }
-
-    inline void setSolarVoltage2(const float voltage) {
-        _solar_voltage_2 = voltage;
-        setMpptVoltage(2, voltage);
     }
 
     inline void setOutputVoltage(const float voltage) {
@@ -399,13 +359,6 @@ private:
 
     inline void setAutoRecover(const uint8_t value) {
         _auto_recover = static_cast<bool>(value);
-    }
-
-    inline void setVoltage(float voltage, uint32_t timestamp) {
-        if (voltage > 0 && _inverse_max.has_value()) {
-            setDischargeCurrentLimit(static_cast<float>(*_inverse_max) / voltage, timestamp);
-        }
-        Batteries::Stats::setVoltage(voltage, timestamp);
     }
 
     inline void setState(std::optional<uint8_t> number) {
@@ -447,12 +400,7 @@ private:
     std::optional<uint16_t> _charge_power = std::nullopt;
     std::optional<uint16_t> _discharge_power = std::nullopt;
     std::optional<uint16_t> _output_power = std::nullopt;
-    std::optional<uint16_t> _input_power = std::nullopt;
-    std::optional<uint16_t> _solar_power_1 = std::nullopt;
-    std::optional<uint16_t> _solar_power_2 = std::nullopt;
 
-    std::optional<float> _solar_voltage_1 = std::nullopt;
-    std::optional<float> _solar_voltage_2 = std::nullopt;
     std::optional<float> _output_voltage = std::nullopt;
 
     uint16_t _charge_power_cycle = 0;
