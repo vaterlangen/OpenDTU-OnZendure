@@ -232,12 +232,14 @@
         "section_mppt1": "Solareingang 1",
         "section_mppt2": "Solareingang 2",
         "mppt1": {
-            "Power": "Leistung",
-            "Voltage": "Voltage"
+            "Power": "@:solarchargerhome.input.PPV",
+            "Voltage": "@:solarchargerhome.input.VPV",
+            "Current": "@:solarchargerhome.input.IPV"
         },
         "mppt2": {
             "Power": "@:solarchargerhome.mppt1.Power",
-            "Voltage": "@:solarchargerhome.mppt1.Voltage"
+            "Voltage": "@:solarchargerhome.mppt1.Voltage",
+            "Current": "@:solarchargerhome.mppt1.Current"
         }
     },
     "eventlog": {
@@ -630,6 +632,7 @@
         "Provider": "Datenanbieter",
         "ProviderVeDirect": "Victron MPPT(s) per VE.Direct Schnittstelle",
         "ProviderMqtt": "Solarladereglerwerte aus MQTT Broker",
+        "ProviderIntegrated": "MPPT Daten von unterstützten Batteriedatenanbietern (aktuell nur Zendure)",
         "MqttPublishUpdatesOnly": "Werte nur bei Änderung an MQTT broker senden",
         "ForwardBatteryData": "Batteriewerte weiterleiten",
         "ForwardBatteryDataDescription": "Wenn aktiviert, werden Batterie-BMS-Daten (Spannung und Temperatur) an die Laderegler weitergeleitet (emuliert die Funktionalität des 'Victron Smart Battery Sense')",
@@ -1373,6 +1376,5 @@
             "batteryProtectionHysteresis": "@:powerlimiteradmin.TargetPowerConsumptionHysteresis",
             "packMinSoc": "Minimaler Pack Ladezustand"
         }
-        
     }
 }
