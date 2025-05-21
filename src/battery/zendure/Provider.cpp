@@ -679,7 +679,7 @@ void Provider::publishPersistentSettings(const char* subtopic, const String& pay
 {
     if (!_topicPersistentSettings.isEmpty())
     {
-        DTU_LOGD("Writing Persistent Settings %s = %s\r\n",
+        DTU_LOGD("Writing Persistent Settings %s = %s",
                 String(_topicPersistentSettings + subtopic).c_str(),
                 payload.substring(0, 32).c_str());
         MqttSettings.publishGeneric(_topicPersistentSettings + subtopic, payload, true);
