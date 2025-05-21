@@ -74,9 +74,16 @@ std::shared_ptr<Integrated::Stats> Controller::getIntegratedStats()
 
     std::lock_guard<std::mutex> lock(_mutex);
 
+    if (millis() < 20 * 1000) {
+        MessageOutput.printf("[SolarCharger] Startup Delay\r\n");
+        return nullptr;
+    }
+
     if (!_upProvider || config.SolarCharger.Provider != SolarChargerProviderType::Integrated) {
         return nullptr;
     }
+
+    MessageOutput.printf("[SolarCharger] getIntegratedStats() => SUCCESS\r\n");
 
     return std::reinterpret_pointer_cast<Integrated::Stats>(_upProvider->getStats());
 }

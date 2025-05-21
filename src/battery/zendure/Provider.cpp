@@ -115,7 +115,7 @@ bool Provider::init(bool verboseLogging)
     JsonDocument root;
     JsonVariant prop = root[ZENDURE_REPORT_PROPERTIES].to<JsonObject>();
     prop[ZENDURE_REPORT_PV_BRAND] = 1; // means Hoymiles
-    prop[ZENDURE_REPORT_PV_AUTO_MODEL] = 0; // we did static setup
+    //prop[ZENDURE_REPORT_PV_AUTO_MODEL] = 0; // we did static setup
     prop[ZENDURE_REPORT_AUTO_RECOVER] = static_cast<uint8_t>(config.Battery.Zendure.BypassMode == static_cast<uint8_t>(BypassMode::Automatic));
     prop[ZENDURE_REPORT_AUTO_SHUTDOWN] = static_cast<uint8_t>(config.Battery.Zendure.AutoShutdown);
     prop[ZENDURE_REPORT_BUZZER_SWITCH] = 0; // disable, as it is anoying

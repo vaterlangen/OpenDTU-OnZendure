@@ -2,6 +2,8 @@
 #include <CRC.h>
 #include <MqttSettings.h>
 #include <solarcharger/integrated/Stats.h>
+#include <MessageOutput.h>
+
 
 namespace SolarChargers::Integrated {
 
@@ -37,6 +39,8 @@ std::optional<float> Stats::getOutputVoltage() const
 
 void Stats::getLiveViewData(JsonVariant& root, const boolean fullUpdate, const uint32_t lastPublish) const
 {
+    MessageOutput.printf("[SolarCharger] LIVE ENTER\r\n");
+
     ::SolarChargers::Stats::getLiveViewData(root, fullUpdate, lastPublish);
 
     auto age = millis() - _lastUpdate;
@@ -45,6 +49,8 @@ void Stats::getLiveViewData(JsonVariant& root, const boolean fullUpdate, const u
     if (!fullUpdate && !hasUpdate) { return; }
 
     for (const auto& [hash, device] : _devices) {
+        MessageOutput.printf("[SolarCharger] LIVE -> device=0x%X\r\n", hash);
+
         auto devage = millis() - device->getLastUpdate();
 
         const JsonObject instance = root["solarcharger"]["instances"][device->getSerial()].to<JsonObject>();
@@ -54,6 +60,8 @@ void Stats::getLiveViewData(JsonVariant& root, const boolean fullUpdate, const u
         instance["product_id"] = device->getName();
 
         for (const auto& [index, mppt] : device->_mppts) {
+            MessageOutput.printf("[SolarCharger] LIVE -> device=0x%X -> mppt=%d\r\n", hash, static_cast<size_t>(index));
+
             auto name = String("mppt" + String(static_cast<size_t>(index)));
             const JsonObject output = instance["values"][name.c_str()].to<JsonObject>();
 
@@ -70,8 +78,21 @@ void Stats::getLiveViewData(JsonVariant& root, const boolean fullUpdate, const u
                 output["Voltage"]["u"] = "V";
                 output["Voltage"]["d"] = 1;
             }
+
+            if (voltage.has_value() && power.has_value()) {
+                if (*voltage == 0) {
+                    output["Current"] = "N/A";
+                } else {
+                    output["Current"]["v"] = *power / *voltage;
+                    output["Current"]["u"] = "A";
+                    output["Current"]["d"] = 1;
+                }
+
+            }
         }
     }
+
+    MessageOutput.printf("[SolarCharger] LIVE EXIT\r\n");
 }
 
 DeviceData::DeviceData(const String& manufacture, const String& device, const String& serial, const size_t numMppts /* = 0 */)
@@ -80,8 +101,12 @@ DeviceData::DeviceData(const String& manufacture, const String& device, const St
     , _serial(serial)
     , _numMppts(numMppts)
 {
+    MessageOutput.printf("[SolarCharger] assert(%d <= 4)", numMppts);
+
     // we currently support up to 4 MPPTs
     assert(numMppts <= 4);
+
+    MessageOutput.printf(" => SUCCESS\r\n");
 
     // Set up internal data structure
     if (numMppts >= 1) { _mppts[MPPT::Number_1] = std::make_shared<MpptData>(); }
@@ -99,12 +124,15 @@ std::optional<std::pair<uint32_t, std::shared_ptr<DeviceData>>> Stats::addDevice
         return std::nullopt;
     }
 
+    MessageOutput.printf("[SolarCharger] addDevice\r\n");
+
     // calculate CRC32 of device data to generate an (almost) unique identifier to be used as key in the map
     const String name = *manufacture + *device + *serial + String(numMppts);
     CRC32 crc(CRC32_POLYNOME, CRC32_INITIAL, CRC32_XOR_OUT, false, false);
     crc.add(reinterpret_cast<const uint8_t*>(name.c_str()), name.length());
     const uint32_t hash = crc.calc();
 
+    MessageOutput.printf("[SolarCharger] addDevice -> CRC=%d\r\n", hash);
     auto new_device = std::make_shared<DeviceData>(*manufacture, *device, *serial, numMppts);
 
     // check if the device already exits
@@ -120,17 +148,21 @@ std::optional<std::pair<uint32_t, std::shared_ptr<DeviceData>>> Stats::addDevice
     }
     catch(const std::out_of_range& ex) {;}
 
+    MessageOutput.printf("[SolarCharger] returning\r\n");
+
     // if no device found for our "hash", add a new one
     _devices[hash] = new_device;
     return std::make_pair(hash, new_device);
 }
 
 void Stats::mqttPublish() const {
+    MessageOutput.printf("[SolarCharger] MQTT ENTER\r\n");
+
     ::SolarChargers::Stats::mqttPublish();
 
     for (const auto& [hash, device] : _devices) {
         for (const auto& [index, mppt] : device->_mppts) {
-            String prefix = "solarchargers/" + device->getSerial() + "/" + static_cast<uint8_t>(index) + "/";
+            String prefix = "solarchargers/" + device->getSerial() + "/mppt" + static_cast<uint8_t>(index) + "/";
 
             auto power = mppt->getPower();
             if (power.has_value()) {
@@ -141,8 +173,14 @@ void Stats::mqttPublish() const {
             if (voltage.has_value()) {
                 MqttSettings.publish(prefix + "voltage", String(*voltage, 1));
             }
+
+            if (voltage.value_or(0) != 0 && power.has_value()) {
+                MqttSettings.publish(prefix + "current", String(*power / *voltage, 1));
+            }
         }
     }
+
+    MessageOutput.printf("[SolarCharger] MQTT EXIT\r\n");
 }
 
 }; // namespace SolarChargers::Integrated

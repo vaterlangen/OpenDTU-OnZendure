@@ -220,12 +220,14 @@
         "section_mppt1": "Solar Input 1",
         "section_mppt2": "Solar Input 2",
         "mppt1": {
-            "Power": "Power",
-            "Voltage": "Voltage"
+            "Power":  "@:solarchargerhome.input.PPV",
+            "Voltage": "@:solarchargerhome.input.VPV",
+            "Current": "@:solarchargerhome.input.IPV"
         },
         "mppt2": {
             "Power": "@:solarchargerhome.mppt1.Power",
-            "Voltage": "@:solarchargerhome.mppt1.Voltage"
+            "Voltage": "@:solarchargerhome.mppt1.Voltage",
+            "Current": "@:solarchargerhome.mppt1.Current"
         }
     },
     "eventlog": {

@@ -5,6 +5,7 @@
 #include <solarcharger/Controller.h>
 #include <solarcharger/integrated/Provider.h>
 #include <solarcharger/integrated/Stats.h>
+#include <MessageOutput.h>
 
 namespace Batteries {
 
@@ -92,10 +93,15 @@ private:
 
         // amd try to re-add our device
         auto result = mppt->addDevice(getManufacturer(), getDeviceName(), getSerial(), getNumberMppts());
-        if (!result.has_value()) { return {}; }
+        if (!result.has_value()) {
+            MessageOutput.printf("SmartBufferStats: mppt->addDevice(%s,%s,%s,%d) => FAILED\r\n" , getManufacturer().value_or("N/A").c_str(), getDeviceName().value_or("N/A").c_str(), getSerial().value_or("N/A").c_str(), getNumberMppts());
+            return {};
+        }
 
         _solarcharger_id = (*result).first;
         _objects = (*result).second->getMppts();
+
+        MessageOutput.printf("SmartBufferStats: Got handle for ID 0x%x\r\n", *_solarcharger_id);
 
         return _objects;
     }
