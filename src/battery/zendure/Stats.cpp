@@ -9,6 +9,8 @@ void Stats::getLiveViewData(JsonVariant& root) const
 {
     ::Batteries::Stats::getLiveViewData(root);
 
+    root["max_age"] = 90;
+
     // values go into the "Status" card of the web application
     std::string section("status");
     addLiveViewInSection(root, section, "totalInputPower", getInputPower().value_or(0), "W", 0);
