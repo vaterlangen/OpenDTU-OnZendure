@@ -7,6 +7,8 @@
 #include <memory>
 
 namespace Batteries {
+    static inline const String HASS_SENSOR_PREFIX = "sensor";
+    static inline const String HASS_BINARY_SENSOR_PREFIX = "binary_sensor";
 
 class HassIntegration {
 public:
@@ -27,10 +29,24 @@ protected:
             const bool enabled = true) const;
     void createDeviceInfo(JsonObject& object) const;
 
+    void removeSensor(const char* caption) const {
+        remove(caption, HASS_SENSOR_PREFIX);
+    };
+    void removeBinarySensor(const char* caption) const {
+        remove(caption, HASS_BINARY_SENSOR_PREFIX);
+    };
+
     virtual void publishSensors() const;
 
 private:
     static String sanitizeUniqueId(const char* value);
+    String createConfigTopic(const String& sensorId, const String& type) const {
+        return type + "/dtu_battery_" + _serial + "/" + sensorId + "/config";
+    };
+    void remove(const char* caption, const String& type) const {
+        String configTopic = createConfigTopic(sanitizeUniqueId(caption), type);
+        publish(configTopic, "");
+    };
 
     String _serial = "0001"; // pseudo-serial, can be replaced in future with real serialnumber
     std::shared_ptr<Stats> _spStats = nullptr;
