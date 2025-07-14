@@ -51,9 +51,7 @@ void HassIntegration::publishSensor(const char* caption, const char* icon,
 {
     String sensorId = sanitizeUniqueId(caption);
 
-    String configTopic = "sensor/dtu_battery_" + _serial
-        + "/" + sensorId
-        + "/config";
+    String configTopic = createConfigTopic(sensorId, HASS_SENSOR_PREFIX);
 
     String statTopic = MqttSettings.getPrefix() + "battery/";
     // omit serial to avoid a breaking change
@@ -108,9 +106,7 @@ void HassIntegration::publishBinarySensor(const char* caption,
 {
     String sensorId = sanitizeUniqueId(caption);
 
-    String configTopic = "binary_sensor/dtu_battery_" + _serial
-        + "/" + sensorId
-        + "/config";
+    String configTopic = createConfigTopic(sensorId, HASS_BINARY_SENSOR_PREFIX);
 
     String statTopic = MqttSettings.getPrefix() + "battery/";
     // omit serial to avoid a breaking change
