@@ -550,7 +550,7 @@ void Provider::processPackData(std::optional<JsonArrayConst>& packData, std::str
         return;
     }
 
-    DTU_LOGD("Calculating pack data for '%s'", logValue.c_str());
+
     for (auto packDataJson : *packData) {
         auto serial = Utils::getJsonElement<String>(packDataJson, ZENDURE_REPORT_PACK_SERIAL);
 
