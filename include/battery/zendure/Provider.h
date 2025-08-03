@@ -13,56 +13,38 @@ namespace Batteries::Zendure {
 class Provider : public ::Batteries::Provider {
 public:
     Provider();
-    bool init() final;
-    void deinit() final;
+    bool init();
+    void deinit();
     void loop() final;
     std::shared_ptr<::Batteries::Stats> getStats() const final { return _stats; }
     std::shared_ptr<::Batteries::HassIntegration> getHassIntegration() final { return _hassIntegration; }
 
-private:
-    uint16_t setOutputLimit(uint16_t limit) const;
-    uint16_t setInverterMax(uint16_t limit) const;
-    void shutdown() const;
+protected:
+    void processPackData(std::optional<JsonArrayConst>& packData, std::string& logValue, const uint64_t timestamp);
+    void processProperties(std::optional<JsonObjectConst>& props, const uint64_t timestamp);
 
-    void checkChargeThrough(uint32_t predictHours = 0U);
+    void calculatePackStats(const uint64_t timestamp);
+    void calculateEfficiency();
+    void setSoC(const float soc, const uint32_t timestamp = 0, const uint8_t precision = 2);
+    bool alive() const { return _stats->getAgeSeconds() < ZENDURE_ALIVE_SECONDS; }
 
-    void timesync();
-    static String parseVersion(uint32_t version);
-    uint16_t calcOutputLimit(uint16_t limit) const;
-    void setTargetSoCs(const float soc_min, const float soc_max);
-    void writeSettings();
+    void setChargeThroughState(const ChargeThroughState value, const bool publish = true);
 
-    uint32_t _lastUpdate = 0;
+    void publishProperty(const String& topic, const String& property, const String& value) const;
+    template<typename... Arg> void publishProperties(const String& topic, Arg&&... args) const;
+
+    void onMqttMessagePersistentSettings(espMqttClientTypes::MessageProperties const& properties,
+            char const* topic, uint8_t const* payload, size_t len);
+
+    virtual void timesync() = 0;
+    virtual void shutdown() const = 0;
+    virtual void writeSettings() = 0;
+    virtual void processPackDataJson(JsonVariantConst& packDataJson, const String& serial, const uint64_t timestamp) = 0;
+
     std::shared_ptr<Stats> _stats = std::make_shared<Stats>();
     std::shared_ptr<HassIntegration> _hassIntegration;
 
-
-    void calculateEfficiency();
-    void calculateFullChargeAge();
-    void publishProperty(const String& topic, const String& property, const String& value) const;
-    template<typename... Arg>
-    void publishProperties(const String& topic, Arg&&... args) const;
-
-    void setSoC(const float soc, const uint32_t timestamp = 0, const uint8_t precision = 2);
-    void setChargeThroughState(const ChargeThroughState value, const bool publish = true);
-
-    void rescheduleSunCalc() { _nextSunCalc = 0; }
-    bool alive() const { return _stats->getAgeSeconds() < ZENDURE_ALIVE_SECONDS; }
-
-    void publishPersistentSettings(const char* subtopic, const String& payload);
-
-    uint32_t _rateFullUpdateMs = 0;
-    uint64_t _nextFullUpdate = 0;
-
-    uint32_t _rateTimesyncMs = 0;
-    uint64_t _nextTimesync = 0;
-
-    uint32_t _rateSunCalcMs = 0;
-    uint64_t _nextSunCalc = 0;
-
     uint32_t _messageCounter = 0;
-
-    String _deviceId = String();
 
     String _baseTopic = String();
     String _topicLog = String();
@@ -78,18 +60,25 @@ private:
 
     bool _full_log_supported = false;
 
-    void onMqttMessageReport(espMqttClientTypes::MessageProperties const& properties,
-            char const* topic, uint8_t const* payload, size_t len);
+private:
+    uint16_t setOutputLimit(uint16_t limit) const;
+    uint16_t setInverterMax(uint16_t limit) const;
+    void checkChargeThrough(uint32_t predictHours = 0U);
+    uint16_t calcOutputLimit(uint16_t limit) const;
+    void setTargetSoCs(const float soc_min, const float soc_max);
 
-    void onMqttMessageLog(espMqttClientTypes::MessageProperties const& properties,
-            char const* topic, uint8_t const* payload, size_t len);
+    void calculateFullChargeAge();
+    void rescheduleSunCalc() { _nextSunCalc = 0; }
+    void publishPersistentSettings(const char* subtopic, const String& payload);
 
-    void onMqttMessageTimesync(espMqttClientTypes::MessageProperties const& properties,
-            char const* topic, uint8_t const* payload, size_t len);
+    uint32_t _rateFullUpdateMs = 0;
+    uint64_t _nextFullUpdate = 0;
 
-    void onMqttMessagePersistentSettings(espMqttClientTypes::MessageProperties const& properties,
-            char const* topic, uint8_t const* payload, size_t len);
+    uint32_t _rateTimesyncMs = 0;
+    uint64_t _nextTimesync = 0;
 
+    uint32_t _rateSunCalcMs = 0;
+    uint64_t _nextSunCalc = 0;
 };
 
 } // namespace Batteries::Zendure
