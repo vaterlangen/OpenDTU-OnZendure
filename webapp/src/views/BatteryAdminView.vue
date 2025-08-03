@@ -445,11 +445,13 @@
 
                     <template v-if="batteryConfigList.zendure.connection_type != 2">
                         <InputElement
-                            :label="$t('batteryadmin.zendure.deviceId')"
-                            v-model="batteryConfigList.zendure.device_id"
-                            type="text"
-                            minlength="8"
-                            maxlength="8"
+                            :label="$t('batteryadmin.ZendureMaxOutput')"
+                            v-model="batteryConfigList.zendure.max_output"
+                            type="number"
+                            min="100"
+                            max="1200"
+                            step="100"
+                            :postfix="$t('batteryadmin.Watt')"
                         />
                         <div class="row">
                             <div class="col-sm-2"></div>
@@ -574,8 +576,7 @@
                             min="10"
                             max="120"
                             step="1"
-                            :tooltip="$t('batteryadmin.zendure.pollingIntervalDescription')"
-                            :postfix="$t('batteryadmin.Seconds')"
+                            :postfix="$t('batteryadmin.Percent')"
                         />
 
                         <div class="row mb-3">
