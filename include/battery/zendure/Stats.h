@@ -154,16 +154,9 @@ class Stats : public ::Batteries::Stats {
         return stateToString(*state);
     }
 
-    static const char* bypassModeToString(BatteryZendureConfig::BypassMode_t state) {
-        switch (state) {
-            case BatteryZendureConfig::BypassMode_t::Automatic:
-                return "automatic";
-            case BatteryZendureConfig::BypassMode_t::AlwaysOff:
-                return "alwaysoff";
-            case BatteryZendureConfig::BypassMode_t::AlwaysOn:
-                return "alwayson";
-            default:
-                break;
+    static const char* bypassModeToString(BatteryZendureConfig::BypassMode_t mode) {
+        if (_bypassModeStrings.contains(mode)) {
+            return _bypassModeStrings.at(mode);
         }
 
         return invalid;
