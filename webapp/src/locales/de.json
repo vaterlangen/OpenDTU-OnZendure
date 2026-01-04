@@ -883,8 +883,8 @@
             "apiDescription": "Weitere Informationen zur Zendure Entwickler Schnittstelle sind im <a href=\"https://github.com/Zendure/developer-device-data-report\" target=\"_blank\">Official Zendure Repository</a> zu finden",
             "secret": "Geheimnis",
             "socMinWarning": "Der eingestellte minimale Ladezustand ({soc}%) ist kleiner als der empfohlene Mindestwert von {min}%. Dies kann zu einer Beschädigung der Batterie führen.",
-            "batteryProtectionHysteresis": "@:powerlimiteradmin.TargetPowerConsumptionHysteresis",
-            "pollingIntervalDescription": "Das BMS überträgt Daten auch asynchron. Zusätzlich wird eine vollständige Datenaktualisierung im angegebenen Intervall erzwungen.",
+            "socMinHysteresis": "Hysterese minimaler Ladezustand",
+            "pollingIntervalDescription": "Das BMS überträgt Daten auch asynchron. Zusätzlich wird eine vollständige Datenaktualisierungen im angegebenen Interval Erzwungen.",
             "batteryProtectionEnabled": "Batterieschutz",
             "batteryProtection": "Erweiterte Batterieschutz Einstellungen"
         }
