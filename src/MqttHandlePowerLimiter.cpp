@@ -107,7 +107,7 @@ void MqttHandlePowerLimiterClass::loop()
         MqttSettings.publish("powerlimiter/status/threshold/voltage/full_solar_passthrough_stop", String(config.PowerLimiter.FullSolarPassThroughStopVoltage));
     }
 
-    if (!config.Battery.Enabled || config.PowerLimiter.IgnoreSoc) { return; }
+    if (!config.Battery->Enabled || config.PowerLimiter.IgnoreSoc) { return; }
 
     MqttSettings.publish("powerlimiter/status/threshold/soc/start", String(config.PowerLimiter.BatterySocStartThreshold));
     MqttSettings.publish("powerlimiter/status/threshold/soc/stop", String(config.PowerLimiter.BatterySocStopThreshold));

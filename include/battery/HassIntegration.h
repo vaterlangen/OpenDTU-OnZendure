@@ -35,7 +35,7 @@ protected:
 
 private:
     static String sanitizeUniqueId(const char* value);
-    static String createBatteryId();
+    static String createBatteryId(const uint32_t uid = 0);
     static String legacyConfigTopic(String const& component, String const& sensorId);
     void startLegacyCleanup();
     void clearLegacyConfigs();

@@ -78,13 +78,14 @@ void HassIntegration::publishSensor(const char* caption, const char* icon,
         const bool enabled) const
 {
     String sensorId = sanitizeUniqueId(caption);
+    String batteryId = createBatteryId(_spStats->getBatteryUid());
 
     if (_legacyCleanupOnly) {
         MqttSettings.publishGeneric(legacyConfigTopic("sensor", sensorId), "", true);
         return;
     }
 
-    String configTopic = "sensor/" + createBatteryId()
+    String configTopic = "sensor/" + batteryId
         + "/" + sensorId
         + "/config";
 
@@ -94,7 +95,7 @@ void HassIntegration::publishSensor(const char* caption, const char* icon,
     JsonDocument root;
     root["name"] = caption;
     root["stat_t"] = statTopic;
-    root["uniq_id"] = createBatteryId() + "_" + sensorId;
+    root["uniq_id"] = batteryId + "_" + sensorId;
 
     if (icon != NULL) {
         root["icon"] = icon;
@@ -137,13 +138,14 @@ void HassIntegration::publishBinarySensor(const char* caption,
         const bool enabled) const
 {
     String sensorId = sanitizeUniqueId(caption);
+    String batteryId = createBatteryId(_spStats->getBatteryUid());
 
     if (_legacyCleanupOnly) {
         MqttSettings.publishGeneric(legacyConfigTopic("binary_sensor", sensorId), "", true);
         return;
     }
 
-    String configTopic = "binary_sensor/" + createBatteryId()
+    String configTopic = "binary_sensor/" + batteryId
         + "/" + sensorId
         + "/config";
 
@@ -153,7 +155,7 @@ void HassIntegration::publishBinarySensor(const char* caption,
     JsonDocument root;
 
     root["name"] = caption;
-    root["uniq_id"] = createBatteryId() + "_" + sensorId;
+    root["uniq_id"] = batteryId + "_" + sensorId;
     root["stat_t"] = statTopic;
     root["pl_on"] = payload_on;
     root["pl_off"] = payload_off;
@@ -185,7 +187,7 @@ void HassIntegration::publishBinarySensor(const char* caption,
 void HassIntegration::createDeviceInfo(JsonObject& object) const
 {
     object["name"] = *_spStats->getHassDeviceName();
-    object["ids"] = createBatteryId();
+    object["ids"] = createBatteryId(_spStats->getBatteryUid());
     object["cu"] = MqttHandleHass.getDtuUrl();
     object["mf"] = "OpenDTU";
     object["mdl"] = *_spStats->getManufacturer();
@@ -267,7 +269,7 @@ void HassIntegration::stopLegacyCleanup()
 // it). HASS only allows [a-zA-Z0-9_-] in the discovery topic node id, other
 // characters are escaped as "_<hex>", so distinct prefixes never map to the
 // same id (e.g. "dtu/a/" and "dtu_a/"). "solar/" -> "dtu_battery_solar".
-String HassIntegration::createBatteryId() {
+String HassIntegration::createBatteryId(const uint32_t uid /* = 0 */) {
     String prefix = MqttSettings.getPrefix();
     if (prefix.endsWith("/")) { prefix.remove(prefix.length() - 1); }
 
@@ -280,6 +282,11 @@ String HassIntegration::createBatteryId() {
         snprintf(escaped, sizeof(escaped), "_%02x", b);
         id += escaped;
     }
+
+    if (uid) {
+	    id += "_" + String(uid, HEX);
+    }
+
     return id;
 }
 
