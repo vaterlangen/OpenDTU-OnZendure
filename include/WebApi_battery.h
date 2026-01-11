@@ -10,8 +10,12 @@ public:
 
 private:
     void onStatus(AsyncWebServerRequest* request);
-    void onAdminGet(AsyncWebServerRequest* request);
-    void onAdminPost(AsyncWebServerRequest* request);
+
+    void onBatteryList(AsyncWebServerRequest* request);
+    void onBatteryAdd(AsyncWebServerRequest* request);
+    void onBatteryEdit(AsyncWebServerRequest* request);
+    void onBatteryDelete(AsyncWebServerRequest* request);
+    void onBatteryOrder(AsyncWebServerRequest* request);
 
     AsyncWebServer* _server;
 };

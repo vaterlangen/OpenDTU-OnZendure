@@ -22,14 +22,30 @@ namespace Batteries {
 
 std::shared_ptr<Stats const> Controller::getStats() const
 {
+    //DTU_LOGW("Useing deprectaed function Batteries::Controller::getStats()!");
     std::lock_guard<std::mutex> lock(_mutex);
 
-    if (!_upProvider) {
+    if (_batteries.empty()) {
         static auto sspDummyStats = std::make_shared<Stats>();
         return sspDummyStats;
     }
 
-    return _upProvider->getStats();
+    return _batteries.front()->getStats();
+}
+
+std::shared_ptr<Stats const> Controller::getStatsByUid(const uint32_t uid) const
+{
+    std::lock_guard<std::mutex> lock(_mutex);
+
+    if (!_batteries.empty()) {
+        for (const auto& battery : _batteries) {
+            if (battery->getStats()->getBatteryUid() == uid) {
+                return battery->getStats();
+            }
+        }
+    }
+
+    return nullptr;
 }
 
 void Controller::init(Scheduler& scheduler)
@@ -42,80 +58,158 @@ void Controller::init(Scheduler& scheduler)
     this->updateSettings();
 }
 
+void Controller::removeByUid(const uint32_t uid)
+{
+    std::lock_guard<std::mutex> lock(_mutex);
+    if (_batteries.empty()) { return; }
+
+    for (auto& battery : _batteries) {
+        if (battery->getStats()->getBatteryUid() != uid) { continue; }
+
+        battery->deinit();
+        _batteries.erase(std::remove(_batteries.begin(), _batteries.end(), battery), _batteries.end());
+
+        DTU_LOGD("Battery with UID 0x%" PRIX32 " removed", uid);
+        return;
+    }
+}
+
+bool Controller::updateSettings(const uint32_t uid)
+{
+    std::lock_guard<std::mutex> lock(_mutex);
+    if (!_batteries.empty()) {
+        for (auto& battery : _batteries) {
+            if (battery->getStats()->getBatteryUid() != uid) { continue; }
+
+            auto bat_cfg = battery->getStats()->getConfig();
+            battery->deinit();
+
+            if (bat_cfg.Enabled) {
+                return battery->init();
+            }
+
+            _batteries.erase(std::remove(_batteries.begin(), _batteries.end(), battery), _batteries.end());
+            return true;
+        }
+    }
+    DTU_LOGE("Battery with UID 0x%" PRIX32 " not found", uid);
+    return false;
+}
+
 void Controller::updateSettings()
 {
     std::lock_guard<std::mutex> lock(_mutex);
 
-    if (_upProvider) {
-        _upProvider->deinit();
-        _upProvider = nullptr;
+    if (!_batteries.empty()) {
+        for (auto& battery : _batteries) {
+            battery->deinit();
+        }
+        _batteries.clear();
     }
 
-    auto const& config = Configuration.get();
-    if (!config.Battery.Enabled) { return; }
+    // Configure batteries
+    for (uint8_t i = 0; i < BAT_MAX_COUNT; i++) {
+        DTU_LOGD("Processing battery slot #%d", i);
+        const auto& bat_cfg = Configuration.get().Batteries[i];
+        if (!bat_cfg.Enabled || bat_cfg.Uid == 0U) { continue; }
 
-    switch (config.Battery.Provider) {
-        case 0:
-            _upProvider = std::make_unique<Pylontech::Provider>();
-            break;
-        case 1:
-            _upProvider = std::make_unique<JkBms::Provider>();
-            break;
-        case 2:
-            _upProvider = std::make_unique<Mqtt::Provider>();
-            break;
-        case 3:
-            _upProvider = std::make_unique<VictronSmartShunt::Provider>();
-            break;
-        case 4:
-            _upProvider = std::make_unique<Pytes::Provider>();
-            break;
-        case 5:
-            _upProvider = std::make_unique<SBS::Provider>();
-            break;
-        case 6:
-            _upProvider = std::make_unique<JbdBms::Provider>();
-            break;
-        case 7:
-            switch (config.Battery.Zendure.ConnectionType) {
-                case BatteryZendureConfig::ConnectionType::LocalMqtt:
-                    _upProvider = std::make_unique<Zendure::LocalMqttProvider>();
-                    break;
-                case BatteryZendureConfig::ConnectionType::ZendureMqtt:
-                    _upProvider = std::make_unique<Zendure::ZendureMqttProvider>();
-                    break;
-                default:
-                    DTU_LOGE("Unknown Zendure connection type: %d", config.Battery.Zendure.ConnectionType);
-                    return;
-            }
-            break;
-        default:
-            DTU_LOGE("Unknown provider: %d", config.Battery.Provider);
-            return;
+        std::shared_ptr<Provider> _upProvider = nullptr;
+
+        switch (bat_cfg.Provider) {
+            case 0:
+                _upProvider = std::make_shared<Pylontech::Provider>();
+                break;
+            case 1:
+                _upProvider = std::make_shared<JkBms::Provider>();
+                break;
+            case 2:
+                _upProvider = std::make_shared<Mqtt::Provider>();
+                break;
+            case 3:
+                _upProvider = std::make_shared<VictronSmartShunt::Provider>();
+                break;
+            case 4:
+                _upProvider = std::make_shared<Pytes::Provider>();
+                break;
+            case 5:
+                _upProvider = std::make_shared<SBS::Provider>();
+                break;
+            case 6:
+                _upProvider = std::make_shared<JbdBms::Provider>();
+                break;
+            case 7:
+                DTU_LOGD("Enabling ZENDURE battery on slot #%d", i);
+                switch (bat_cfg.Zendure.ConnectionType) {
+                    case BatteryZendureConfig::ConnectionType::LocalMqtt:
+                        _upProvider = std::make_shared<Zendure::LocalMqttProvider>();
+                        break;
+                    case BatteryZendureConfig::ConnectionType::ZendureMqtt:
+                        _upProvider = std::make_shared<Zendure::ZendureMqttProvider>();
+                        break;
+                    default:
+                        DTU_LOGE("Unknown Zendure connection type: %d", bat_cfg.Zendure.ConnectionType);
+                        break;
+                }
+                break;
+            default:
+                DTU_LOGE("Unknown provider: %d", bat_cfg.Provider);
+                break;
+        }
+
+        if (!_upProvider) { continue; }
+
+        // assign battery config to provider stats
+        //MUST be done before calling INIT!
+        _upProvider->getStats()->setBatteryIndex(i);
+        _upProvider->getStats()->setBatteryUid(bat_cfg.Uid);
+
+        if (_upProvider->init()) {
+            _batteries.push_back(_upProvider);
+            DTU_LOGI("Added battery UID 0x%" PRIX32 " (slot #%d) with provider %d to controller", bat_cfg.Uid, i, bat_cfg.Provider);
+        } else {
+            DTU_LOGE("Failed to initialize battery provider %d", bat_cfg.Provider);
+        }
+
+        delay(500);
     }
-
-    if (!_upProvider->init()) { _upProvider = nullptr; }
 }
 
 void Controller::loop()
 {
     std::lock_guard<std::mutex> lock(_mutex);
 
-    if (!_upProvider) { return; }
+    if (_batteries.empty()) { return; }
 
-    _upProvider->loop();
+    for (auto& battery : _batteries) {
+        battery->loop();
+        battery->getStats()->mqttLoop();
 
-    _upProvider->getStats()->mqttLoop();
+        auto spHassIntegration = battery->getHassIntegration();
+        if (spHassIntegration) { spHassIntegration->hassLoop(); }
+    }
+}
 
-    auto spHassIntegration = _upProvider->getHassIntegration();
-    if (spHassIntegration) { spHassIntegration->hassLoop(); }
+void Controller::getLiveViewData(JsonVariant& root) const
+{
+    std::lock_guard<std::mutex> lock(_mutex);
+
+    if (_batteries.empty()) { return; }
+
+    auto array = root.to<JsonArray>();
+    for (auto& battery : _batteries) {
+        const auto& stats = battery->getStats();
+        if (!stats || stats->getBatteryUid() == 0U) { continue; }
+
+        JsonVariant bat = array.add<JsonObject>();
+        stats->getLiveViewData(bat);
+    }
 }
 
 float Controller::getDischargeCurrentLimit()
 {
     auto const& config = Configuration.get();
 
-    if (!config.Battery.EnableDischargeCurrentLimit) { return FLT_MAX; }
+    if (!config.Battery->EnableDischargeCurrentLimit) { return FLT_MAX; }
 
     /**
      * we are looking at two limits: (1) the static discharge current limit
@@ -131,13 +225,13 @@ float Controller::getDischargeCurrentLimit()
     auto spStats = getStats();
 
     auto getConfiguredLimit = [&config,&spStats]() -> float {
-        auto configuredLimit = config.Battery.DischargeCurrentLimit;
+        auto configuredLimit = config.Battery->DischargeCurrentLimit;
         if (configuredLimit <= 0.0f) { return FLT_MAX; } // invalid setting
 
         bool useSoC = spStats->getSoCAgeSeconds() <= 60 && !config.PowerLimiter.IgnoreSoc;
 
         if (useSoC) {
-            auto threshold = config.Battery.DischargeCurrentLimitBelowSoc;
+            auto threshold = config.Battery->DischargeCurrentLimitBelowSoc;
             if (spStats->getSoC() >= threshold) { return FLT_MAX; }
 
             return configuredLimit;
@@ -145,7 +239,7 @@ float Controller::getDischargeCurrentLimit()
 
         bool voltageValid = spStats->getVoltageAgeSeconds() <= 60;
         if (voltageValid) {
-            auto threshold = config.Battery.DischargeCurrentLimitBelowVoltage;
+            auto threshold = config.Battery->DischargeCurrentLimitBelowVoltage;
             if (spStats->getVoltage() >= threshold) { return FLT_MAX; }
         }
 
@@ -153,7 +247,7 @@ float Controller::getDischargeCurrentLimit()
     };
 
     auto getBatteryLimit = [&config,&spStats]() -> float {
-        if (!config.Battery.UseBatteryReportedDischargeCurrentLimit) { return FLT_MAX; }
+        if (!config.Battery->UseBatteryReportedDischargeCurrentLimit) { return FLT_MAX; }
 
         if (spStats->getDischargeCurrentLimitAgeSeconds() > 60) { return FLT_MAX; } // unusable
 

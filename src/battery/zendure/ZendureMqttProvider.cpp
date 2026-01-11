@@ -8,7 +8,8 @@
 
 #undef TAG
 static const char* TAG = "battery";
-static const char* SUBTAG = "Zendure";
+//static const char* SUBTAG = "Zendure";
+#define SUBTAG _stats->getConfig().Name
 
 namespace Batteries::Zendure {
 
@@ -17,37 +18,39 @@ ZendureMqttProvider::ZendureMqttProvider()
 
 bool ZendureMqttProvider::init()
 {
-    auto const& config = Configuration.get();
+    auto const& config = _stats->getConfig();
 
-    if (strlen(config.Battery.Zendure.AppKey) != 8) {
-        DTU_LOGE("Invalid app key '%s'!", config.Battery.Zendure.AppKey);
+    if (strlen(config.Zendure.AppKey) != 8) {
+        DTU_LOGE("Invalid app key '%s'!", config.Zendure.AppKey);
         return false;
     }
 
-    if (strlen(config.Battery.Zendure.Secret) != 32) {
-        DTU_LOGE("Invalid secret '%s'!", config.Battery.Zendure.Secret);
+    if (strlen(config.Zendure.Secret) != 32) {
+        DTU_LOGE("Invalid secret '%s'!", config.Zendure.Secret);
         return false;
     }
 
-    if (strlen(config.Battery.Zendure.Server) < 4) {
-        DTU_LOGE("Invalid server '%s'!", config.Battery.Zendure.Server);
+    if (strlen(config.Zendure.Server) < 4) {
+        DTU_LOGE("Invalid server '%s'!", config.Zendure.Server);
         return false;
     }
 
-    if (config.Battery.Zendure.Port < 1) {
-        DTU_LOGE("Invalid port '%" PRIu16 "'!", config.Battery.Zendure.Port);
+    if (config.Zendure.Port < 1) {
+        DTU_LOGE("Invalid port '%" PRIu16 "'!", config.Zendure.Port);
         return false;
     }
 
-    if (strlen(config.Battery.Zendure.ClientId) < 2) {
-        DTU_LOGE("Invalid client id '%s'!", config.Battery.Zendure.ClientId);
+    if (strlen(config.Zendure.ClientId) < 2) {
+        DTU_LOGE("Invalid client id '%s'!", config.Zendure.ClientId);
         return false;
     }
 
     if (!Provider::init()) { return false; }
 
+    DTU_LOGD("ZendureMqttProvider, UID: 0x%" PRIX32 ", Index: %" PRIu32, _stats->getBatteryUid(), _stats->getBatteryIndex());
+
     // store device ID as we will need them for checking when receiving messages
-    setTopics(config.Battery.Zendure.AppKey, config.Battery.Zendure.DeviceId);
+    setTopics(config.Zendure.AppKey, config.Zendure.DeviceId);
 
     // disable charge through cycle if disable by config
     setChargeThroughState(ChargeThroughState::Disabled);
@@ -230,11 +233,11 @@ void ZendureMqttProvider::performConnect()
     }
 
     ESP_LOGI(TAG, "Connecting to Zendure MQTT...");
-    const CONFIG_T& config = Configuration.get();
+    const auto& config = _stats->getConfig();
 
-    static_cast<espMqttClient*>(_mqttClient)->setServer(config.Battery.Zendure.Server, config.Battery.Zendure.Port);
-    static_cast<espMqttClient*>(_mqttClient)->setCredentials(config.Battery.Zendure.AppKey, config.Battery.Zendure.Secret);
-    static_cast<espMqttClient*>(_mqttClient)->setClientId(config.Battery.Zendure.ClientId);
+    static_cast<espMqttClient*>(_mqttClient)->setServer(config.Zendure.Server, config.Zendure.Port);
+    static_cast<espMqttClient*>(_mqttClient)->setCredentials(config.Zendure.AppKey, config.Zendure.Secret);
+    static_cast<espMqttClient*>(_mqttClient)->setClientId(config.Zendure.ClientId);
     static_cast<espMqttClient*>(_mqttClient)->setCleanSession(false);
     static_cast<espMqttClient*>(_mqttClient)->onConnect(std::bind(&ZendureMqttProvider::onMqttConnect, this, _1));
     static_cast<espMqttClient*>(_mqttClient)->onDisconnect(std::bind(&ZendureMqttProvider::onMqttDisconnect, this, _1));

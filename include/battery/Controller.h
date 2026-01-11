@@ -13,17 +13,26 @@ class Controller {
 public:
     void init(Scheduler&);
     void updateSettings();
+    bool updateSettings(const uint32_t uid);
+    void removeByUid(const uint32_t uid);
 
     float getDischargeCurrentLimit();
 
     std::shared_ptr<Stats const> getStats() const;
+    std::shared_ptr<Stats const> getStatsByUid(const uint32_t uid) const;
+
+    void getLiveViewData(JsonVariant& root) const;
+    size_t getBatteryCount() const {
+        std::lock_guard<std::mutex> lock(_mutex);
+        return _batteries.size();
+    }
 
 private:
     void loop();
 
     Task _loopTask;
     mutable std::mutex _mutex;
-    std::unique_ptr<Provider> _upProvider = nullptr;
+    std::vector<std::shared_ptr<Provider>> _batteries;
 };
 
 } // namespace Batteries

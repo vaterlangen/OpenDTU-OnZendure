@@ -56,7 +56,8 @@ protected:
     String _topicWrite = String();
     String _topicTimesync = String();
     String _topicTimesyncReply = String();
-    String _topicPersistentSettings = String();
+    String _topicPersistentSettingsPublish = String();
+    String _topicPersistentSettingsSubscribe = String();
 
     String _payloadFullUpdate = String();
 
@@ -82,6 +83,8 @@ private:
 
     uint32_t _rateSunCalcMs = 0;
     uint64_t _nextSunCalc = 0;
+
+    bool _firstIteration = true;
 };
 
 } // namespace Batteries::Zendure

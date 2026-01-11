@@ -8,7 +8,8 @@
 
 #undef TAG
 static const char* TAG = "battery";
-static const char* SUBTAG = "Zendure";
+//static char* SUBTAG = "Zendure-0000";
+#define SUBTAG _stats->getConfig().Name
 
 namespace Batteries::Zendure {
 
@@ -17,16 +18,16 @@ LocalMqttProvider::LocalMqttProvider()
 
 bool LocalMqttProvider::init()
 {
-    auto const& config = Configuration.get();
+    auto const& config = _stats->getConfig();
 
     if (!Provider::init()) { return false; }
 
     String deviceType = String();
 
-    DTU_LOGD("Settings %" PRIu32, config.Battery.Zendure.DeviceType);
+    DTU_LOGD("LocalMqttProvider, Type: %" PRIu32 ", UID: 0x%" PRIX32 ", Index: %" PRIu32, config.Zendure.DeviceType, _stats->getBatteryUid(), _stats->getBatteryIndex());
     {
         String deviceName = String();
-        switch (config.Battery.Zendure.DeviceType) {
+        switch (config.Zendure.DeviceType) {
             case 0:
                 deviceType = ZENDURE_HUB1200;
                 deviceName = ZENDURE_HUB1200_NAME;
@@ -65,9 +66,7 @@ bool LocalMqttProvider::init()
     }
 
     // store device ID as we will need them for checking when receiving messages
-    setTopics(deviceType, config.Battery.Zendure.DeviceId);
-
-    _topicPersistentSettings = MqttSettings.getPrefix() + "battery/persistent/";
+    setTopics(deviceType, config.Zendure.DeviceId);
 
     // subscribe for log messages
     MqttSettings.subscribe(_topicLog, 0/*QoS*/,
@@ -100,13 +99,8 @@ bool LocalMqttProvider::init()
     array.add("getInfo");
     serializeJson(root, _payloadFullUpdate);
 
-    // disable charge through cycle if disable by config
-    if (!config.Battery.Zendure.ChargeThroughEnable) {
-        setChargeThroughState(ChargeThroughState::Disabled);
-    }
-
     // check if we are allowed to write stuff
-    if (config.Battery.Zendure.ControlMode == BatteryZendureConfig::ControlMode::ControlModeReadOnly) {
+    if (config.Zendure.ControlMode == BatteryZendureConfig::ControlMode::ControlModeReadOnly) {
         DTU_LOGI("Running in READ-ONLY mode");
 
         // forget about write topic and payload to prevent it will ever be written
@@ -152,12 +146,11 @@ void LocalMqttProvider::writeSettings() {
         return;
     }
 
-    auto const& config = Configuration.get();
+    auto const& config = _stats->getConfig();
 
-    setBuzzer(config.Battery.Zendure.BuzzerEnable);
-    setAutoshutdown(config.Battery.Zendure.AutoShutdown);
-    setBypassMode(config.Battery.Zendure.BypassMode);
-
+    setBuzzer(config.Zendure.BuzzerEnable);
+    setAutoshutdown(config.Zendure.AutoShutdown);
+    setBypassMode(config.Zendure.BypassMode);
     publishProperty(_topicWrite, ZENDURE_REPORT_PV_BRAND, "1");         // means Hoymiles
     publishProperty(_topicWrite, ZENDURE_REPORT_PV_AUTO_MODEL, "0");    // we did static setup
     publishProperty(_topicWrite, ZENDURE_REPORT_SMART_MODE, "0");       // disable smart mode
@@ -169,7 +162,7 @@ void LocalMqttProvider::writeSettings() {
     // );
 
     // if running in OnlyOnce mode, forget about write topic to prevent it will ever be written again
-    if (config.Battery.Zendure.ControlMode == BatteryZendureConfig::ControlMode::ControlModeOnce) {
+    if (config.Zendure.ControlMode == BatteryZendureConfig::ControlMode::ControlModeOnce) {
         _topicWrite.clear();
     }
 }
@@ -206,13 +199,19 @@ void LocalMqttProvider::timesync()
 void LocalMqttProvider::onMqttMessageTimesync(espMqttClientTypes::MessageProperties const& properties,
         char const* topic, uint8_t const* payload, size_t len)
 {
+    if (!_topicReport.equals(topic)) { return; }
     timesync();
 }
 
 void LocalMqttProvider::onMqttMessageReport(espMqttClientTypes::MessageProperties const& properties,
         char const* topic, uint8_t const* payload, size_t len)
 {
+    if (!_topicReport.equals(topic)) {
+        DTU_LOGW("Ignoreing Report received on topic '%s' - expecting '%s'", topic, _topicReport.c_str());
+        return;
+    }
     auto ms = millis();
+    //DTU_LOGD("Report received on topic '%s' - expecting '%s'", topic, _topicReport.c_str());
 
     std::string const src = std::string(reinterpret_cast<const char*>(payload), len);
     std::string logValue = src.substr(0, 64);
@@ -236,14 +235,17 @@ void LocalMqttProvider::onMqttMessageReport(espMqttClientTypes::MessagePropertie
     // validate input data
     // messageId has to be set to "123"
     // deviceId has to be set to the configured deviceId
+    auto devid = _stats->getConfig().Zendure.DeviceId;
+    if (!json["deviceId"].as<String>().equals(devid)) {
+        //DTU_LOGE("Invalid or missing 'deviceId=<%s>' in '%s'", devid, logValue.c_str());
+        return;
+    }
+
     if (!json["messageId"].as<String>().equals("123")) {
         DTU_LOGE("Invalid or missing 'messageId' in '%s'", logValue.c_str());
         return;
     }
-    if (!json["deviceId"].as<String>().equals(Configuration.get().Battery.Zendure.DeviceId)) {
-        DTU_LOGE("Invalid or missing 'deviceId' in '%s'", logValue.c_str());
-        return;
-    }
+
 
     auto props = Utils::getJsonElement<JsonObjectConst>(obj, ZENDURE_REPORT_PROPERTIES, 1);
     auto packData = Utils::getJsonElement<JsonArrayConst>(obj, ZENDURE_REPORT_PACK_DATA, 2);
@@ -255,9 +257,14 @@ void LocalMqttProvider::onMqttMessageReport(espMqttClientTypes::MessagePropertie
 void LocalMqttProvider::onMqttMessageLog(espMqttClientTypes::MessageProperties const& properties,
         char const* topic, uint8_t const* payload, size_t len)
 {
+    if (!_topicLog.equals(topic)) {
+        DTU_LOGW("Ignoreing Logging Frame received on topic '%s' - expecting '%s'", topic, _topicLog.c_str());
+        return;
+    }
     auto ms = millis();
 
-    DTU_LOGD("Logging Frame received!");
+    auto devid = _stats->getConfig().Zendure.DeviceId;
+    //DTU_LOGD("Logging Frame received on topic '%s'", topic);
 
     std::string const src = std::string(reinterpret_cast<const char*>(payload), len);
     std::string logValue = src.substr(0, 64);
@@ -281,8 +288,8 @@ void LocalMqttProvider::onMqttMessageLog(espMqttClientTypes::MessageProperties c
     // validate input data
     // deviceId has to be set to the configured deviceId
     // logType has to be set to "2"
-    if (!json["deviceId"].as<String>().equals(Configuration.get().Battery.Zendure.DeviceId)) {
-        DTU_LOGE("Invalid or missing 'deviceId' in '%s'", logValue.c_str());
+    if (!json["deviceId"].as<String>().equals(devid)) {
+        //DTU_LOGE("Invalid or missing 'deviceId=<%s>' in '%s'", devid, logValue.c_str());
         return;
     }
     if (!json["logType"].as<String>().equals("2")) {
@@ -329,7 +336,8 @@ void LocalMqttProvider::onMqttMessageLog(espMqttClientTypes::MessageProperties c
 
     // some devices have different log structure - only process for devices explicitly enabled!
     if (_full_log_supported) {
-        _stats->setOutputVoltage(v[ZENDURE_LOG_OFFSET_INPUT_VOLTAGE].as<float>() / 10.0);
+        _stats->setVoltage(v[ZENDURE_LOG_OFFSET_INPUT_VOLTAGE].as<float>() / 10.0, ms);
+        _stats->setOutputVoltage(v[ZENDURE_LOG_OFFSET_OUTPUT_VOLTAGE].as<float>() / 10.0);
         _stats->setSolarVoltage(SmartBufferStats::MPPT::Number_1, v[ZENDURE_LOG_OFFSET_SOLAR_VOLTAGE_MPPT_1].as<float>() / 10.0, ms);
         _stats->setSolarVoltage(SmartBufferStats::MPPT::Number_2, v[ZENDURE_LOG_OFFSET_SOLAR_VOLTAGE_MPPT_2].as<float>() / 10.0, ms);
 

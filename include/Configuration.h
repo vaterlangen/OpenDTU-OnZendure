@@ -11,6 +11,7 @@
 #define CONFIG_FILENAME "/config.json"
 #define CONFIG_VERSION 0x00011e00 // 0.1.30 // make sure to clean all after change
 #define CONFIG_VERSION_ONBATTERY 8
+#define CONFIG_VERSION_ONZENDURE 1
 
 #define WIFI_MAX_SSID_STRLEN 32
 #define WIFI_MAX_PASSWORD_STRLEN 64
@@ -34,6 +35,10 @@
 #define INV_MAX_NAME_STRLEN 31
 #define INV_MAX_COUNT 10
 #define INV_MAX_CHAN_COUNT 6
+
+#define BAT_MAX_NAME_STRLEN 31
+#define BAT_MAX_COUNT 3
+#define BAT_PROVIDER_MAX 7
 
 #define CHAN_MAX_NAME_STRLEN 31
 
@@ -248,6 +253,9 @@ using BatterySerialConfig = struct BATTERY_SERIAL_CONFIG_T;
 
 struct BATTERY_CONFIG_T {
     bool Enabled;
+    uint32_t Uid;
+    char Name[BAT_MAX_NAME_STRLEN + 1];
+    uint8_t Order;
     uint8_t Provider;
     BatteryMqttConfig Mqtt;
     BatteryZendureConfig Zendure;
@@ -336,6 +344,7 @@ struct CONFIG_T {
     struct {
         uint32_t Version;
         uint32_t VersionOnBattery;
+        uint32_t VersionOnZendure;
         uint32_t SaveCount;
     } Cfg;
 
@@ -455,7 +464,8 @@ struct CONFIG_T {
 
     PowerLimiterConfig PowerLimiter;
 
-    BatteryConfig Battery;
+    BatteryConfig Batteries[BAT_MAX_COUNT];
+    BatteryConfig* Battery;
 
     GridChargerConfig GridCharger;
 
@@ -478,6 +488,7 @@ public:
     bool write();
     void migrate();
     void migrateOnBattery();
+    void migrateOnZendure();
     CONFIG_T const& get();
 
     class WriteGuard {
@@ -495,6 +506,10 @@ public:
     INVERTER_CONFIG_T* getFreeInverterSlot();
     INVERTER_CONFIG_T* getInverterConfig(const uint64_t serial);
     void deleteInverterById(const uint8_t id);
+
+    BATTERY_CONFIG_T* getFreeBatterySlot();
+    BATTERY_CONFIG_T* getBatteryConfig(const uint32_t uid);
+    void deleteBatteryById(const uint8_t id);
 
     int8_t getIndexForLogModule(const String& moduleName) const;
 
