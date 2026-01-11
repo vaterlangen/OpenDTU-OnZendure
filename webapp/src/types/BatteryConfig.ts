@@ -51,6 +51,10 @@ export interface BatterySerialConfig {
 }
 
 export interface BatteryConfig {
+    id: string;
+    uid: number;
+    name: string;
+    order: number;
     enabled: boolean;
     provider: number;
     serial: BatterySerialConfig;

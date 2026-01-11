@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #pragma once
 
+#include <MqttSettings.h>
+#include <Configuration.h>
 #include <Arduino.h>
 #include <stdint.h>
 #include <AsyncJson.h>
 #include <cfloat>
+#include <inttypes.h>
 #include <string>
 
 namespace Batteries {
@@ -27,6 +30,7 @@ public:
 
     float getVoltage() const { return _voltage; }
     uint32_t getVoltageAgeSeconds() const { return (millis() - _lastUpdateVoltage) / 1000; }
+    uint8_t getVoltagePrecision() const { return 2; }
 
     float getChargeCurrent() const { return _current; };
     uint8_t getChargeCurrentPrecision() const { return _currentPrecision; }
@@ -47,6 +51,11 @@ public:
 
     uint32_t getTemperatureAgeSeconds() const { return (millis() - _lastUpdateTemperature) / 1000; }
 
+    virtual float getPower() const {
+        if (!isPowerValid()) { return 0.0f; }
+        return getVoltage() * getChargeCurrent();
+    }
+
     // convert stats to JSON for web application live view
     virtual void getLiveViewData(JsonVariant& root) const;
 
@@ -59,6 +68,7 @@ public:
     bool isSoCValid() const { return _lastUpdateSoC > 0; }
     bool isVoltageValid() const { return _lastUpdateVoltage > 0; }
     bool isCurrentValid() const { return _lastUpdateCurrent > 0; }
+    bool isPowerValid() const { return isVoltageValid() && isCurrentValid(); }
     bool isDischargeCurrentLimitValid() const { return _lastUpdateDischargeCurrentLimit > 0; }
     bool isChargeCurrentLimitValid() const { return _lastUpdateChargeCurrentLimit > 0; }
 
@@ -72,6 +82,52 @@ public:
     bool supportsFullChargeRequest() const { return _fullChargeRequest.has_value(); }
 
     virtual bool supportsAlarmsAndWarnings() const { return true; };
+
+    virtual bool isReachable() const { return getAgeSeconds() < 120; };
+    virtual bool isSleeping() const { return false; };
+    virtual bool isProducing() const { return true; };
+    virtual float getLimit() const { return -1.0f; };
+
+    virtual inline String buildTopic(const String &subTopic) const {
+        return "batteries/" + _batteryUidStr + "/" + subTopic;
+    }
+
+    void setBatteryIndex(const uint8_t index) {
+        _batteryIndex = index;
+
+        char buff[9];
+        snprintf(buff, sizeof(buff), "_%04u", _batteryIndex + 1);
+        _batteryIndexStr = String(buff);
+    }
+
+    uint8_t getBatteryIndex() const {
+        return _batteryIndex;
+    }
+
+    const BatteryConfig& getConfig() const {
+        return Configuration.get().Batteries[_batteryIndex];
+    }
+
+    uint32_t getBatteryUid() const {
+        return _batteryUid;
+    }
+
+    void setBatteryUid(const uint32_t uid) {
+        _batteryUid = uid;
+        _batteryUidStr = String(uid);
+    }
+
+    inline void publish(const String &topic, const String &payload) const {
+        MqttSettings.publish(buildTopic(topic), payload);
+    }
+
+    inline const String getName() const {
+        return getConfig().Name;
+    }
+
+    virtual std::optional<uint32_t> getCapacityWh() const {
+        return std::nullopt;
+    }
 
 protected:
     virtual void mqttPublish() const;
@@ -112,6 +168,16 @@ protected:
     }
 
     void setManufacturer(const String& m);
+
+    template<typename T>
+    static void addLiveViewInRoot(JsonVariant& root, std::string const& name,
+        T&& value, std::string const& unit, uint8_t precision)
+    {
+        auto jsonValue = root[name];
+        jsonValue["v"] = value;
+        jsonValue["u"] = unit;
+        jsonValue["d"] = precision;
+    }
 
     template<typename T>
     static void addLiveViewInSection(JsonVariant& root,
@@ -220,6 +286,11 @@ private:
 
     float _temperature = 0;
     uint32_t _lastUpdateTemperature = 0;
+
+    uint8_t _batteryIndex = 0;
+    uint32_t _batteryUid = 0;
+    String _batteryIndexStr = "_0000";
+    String _batteryUidStr = "0";
 };
 
 } // namespace Batteries

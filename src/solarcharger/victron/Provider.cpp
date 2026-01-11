@@ -77,7 +77,7 @@ void Provider::loop()
 {
     auto const& config = Configuration.get();
     auto const forwardBatteryData = config.SolarCharger.ForwardBatteryData;
-    auto const batteryEnabled = config.Battery.Enabled;
+    auto const batteryEnabled = config.Battery->Enabled;
     auto const chargeLimit = Battery.getChargeCurrentLimit();
     auto const limitActive = (chargeLimit != FLT_MAX);
 

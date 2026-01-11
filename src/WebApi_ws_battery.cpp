@@ -110,7 +110,8 @@ void WebApiWsBatteryLiveClass::sendDataTaskCb()
 
 void WebApiWsBatteryLiveClass::generateCommonJsonResponse(JsonVariant& root)
 {
-    Battery.getStats()->getLiveViewData(root);
+    //Battery.getStats()->getLiveViewData(root);
+    Battery.getLiveViewData(root);
 }
 
 void WebApiWsBatteryLiveClass::onWebsocketEvent(AsyncWebSocket* server, AsyncWebSocketClient* client, AwsEventType type, void* arg, uint8_t* data, size_t len)
