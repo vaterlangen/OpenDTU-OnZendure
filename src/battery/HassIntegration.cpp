@@ -26,9 +26,10 @@ void HassIntegration::hassLoop()
         return;
     }
 
-    if (!_publishSensors ||
+    if (!_publishSensors || !_spStats ||
         !_spStats->getManufacturer().has_value() ||
-        !_spStats->getHassDeviceName().has_value()) { return; }
+        !_spStats->getHassDeviceName().has_value() ||
+        !_spStats->getSerial().has_value()) { return; }
 
     publishSensors();
 
@@ -49,22 +50,19 @@ void HassIntegration::publishSensor(const char* caption, const char* icon,
         const char* stateClass, const char* unitOfMeasurement,
         const bool enabled) const
 {
+    String serial = *_spStats->getSerial();
     String sensorId = sanitizeUniqueId(caption);
 
-    String configTopic = "sensor/dtu_battery_" + _serial
+    String configTopic = "sensor/dtu_battery_" + serial
         + "/" + sensorId
         + "/config";
 
-    String statTopic = MqttSettings.getPrefix() + "battery/";
-    // omit serial to avoid a breaking change
-    // statTopic.concat(_serial);
-    // statTopic.concat("/");
-    statTopic.concat(subTopic);
+    String statTopic = MqttSettings.getPrefix() + _spStats->buildTopic(subTopic);
 
     JsonDocument root;
     root["name"] = caption;
     root["stat_t"] = statTopic;
-    root["uniq_id"] = _serial + "_" + sensorId;
+    root["uniq_id"] = serial + "_battery_" + sensorId;
 
     if (icon != NULL) {
         root["icon"] = icon;
@@ -106,22 +104,19 @@ void HassIntegration::publishBinarySensor(const char* caption,
         const char* payload_on, const char* payload_off,
         const bool enabled) const
 {
+    String serial = *_spStats->getSerial();
     String sensorId = sanitizeUniqueId(caption);
 
-    String configTopic = "binary_sensor/dtu_battery_" + _serial
+    String configTopic = "binary_sensor/dtu_battery_" + serial
         + "/" + sensorId
         + "/config";
 
-    String statTopic = MqttSettings.getPrefix() + "battery/";
-    // omit serial to avoid a breaking change
-    // statTopic.concat(_serial);
-    // statTopic.concat("/");
-    statTopic.concat(subTopic);
+    String statTopic = MqttSettings.getPrefix() + _spStats->buildTopic(subTopic);
 
     JsonDocument root;
 
     root["name"] = caption;
-    root["uniq_id"] = _serial + "_" + sensorId;
+    root["uniq_id"] = serial + "_battery_" + sensorId;
     root["stat_t"] = statTopic;
     root["pl_on"] = payload_on;
     root["pl_off"] = payload_off;
@@ -149,7 +144,7 @@ void HassIntegration::publishBinarySensor(const char* caption,
 void HassIntegration::createDeviceInfo(JsonObject& object) const
 {
     object["name"] = *_spStats->getHassDeviceName();
-    object["ids"] = _serial;
+    object["ids"] = *_spStats->getSerial();
     object["cu"] = MqttHandleHass.getDtuUrl();
     object["mf"] = "OpenDTU";
     object["mdl"] = *_spStats->getManufacturer();

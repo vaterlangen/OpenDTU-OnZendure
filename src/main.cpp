@@ -86,6 +86,11 @@ void setup()
             Configuration.get().Cfg.VersionOnBattery, CONFIG_VERSION_ONBATTERY);
         Configuration.migrateOnBattery();
     }
+    if (Configuration.get().Cfg.VersionOnZendure != CONFIG_VERSION_ONZENDURE) {
+        ESP_LOGI(TAG, "Migrating OpenDTU-OnZendure-specific config from %d to %d",
+            Configuration.get().Cfg.VersionOnZendure, CONFIG_VERSION_ONZENDURE);
+        Configuration.migrateOnZendure();
+    }
 
     // Set configured log levels
     Logging.applyLogLevels();

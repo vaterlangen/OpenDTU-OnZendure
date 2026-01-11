@@ -9,7 +9,8 @@
 
 #undef TAG
 static const char* TAG = "battery";
-static const char* SUBTAG = "Zendure";
+//static const char* SUBTAG = "Zendure";
+#define SUBTAG _stats->getConfig().Name
 
 namespace Batteries::Zendure {
 
@@ -19,53 +20,59 @@ Provider::Provider()
 
 bool Provider::init()
 {
-    auto const& config = Configuration.get();
-    String deviceType = String();
+    DTU_LOGI("Initializing Zendure provider");
 
-    if (strlen(config.Battery.Zendure.DeviceId) != 8) {
-        DTU_LOGE("Invalid device id '%s'!", config.Battery.Zendure.DeviceId);
+    auto const& config = _stats->getConfig();
+
+    if (strlen(config.Zendure.DeviceId) != 8) {
+        DTU_LOGE("Invalid device id '%s'!", config.Zendure.DeviceId);
         return false;
     }
 
     _stats->setManufacturer("Zendure");
 
-    _topicPersistentSettings = MqttSettings.getPrefix() + "battery/persistent/";
+    _topicPersistentSettingsPublish = MqttSettings.getPrefix() + "settings/batteries/" + String(config.Uid) + "/";
+    _topicPersistentSettingsSubscribe = _topicPersistentSettingsPublish + "#";
 
-    auto topic = _topicPersistentSettings + "#";
-    MqttSettings.subscribe(topic, 0/*QoS*/,
+
+    MqttSettings.subscribe(_topicPersistentSettingsSubscribe, 0/*QoS*/,
             std::bind(&Provider::onMqttMessagePersistentSettings,
                 this, std::placeholders::_1, std::placeholders::_2,
                 std::placeholders::_3, std::placeholders::_4)
             );
-    DTU_LOGD("Subscribed to '%s' for persistent settings", topic.c_str());
+    DTU_LOGD("Subscribed to '%s' for persistent settings", _topicPersistentSettingsSubscribe.c_str());
 
-    _rateFullUpdateMs   = Configuration.get().Battery.Zendure.PollingInterval * 1000;
+    _rateFullUpdateMs   = config.Zendure.PollingInterval * 1000;
     _nextFullUpdate     = millis() + _rateFullUpdateMs / 2;
     _rateTimesyncMs     = ZENDURE_SECONDS_TIMESYNC * 1000;
     _nextTimesync       = _nextFullUpdate;
     _rateSunCalcMs      = ZENDURE_SECONDS_SUNPOSITION * 1000;
     _nextSunCalc        = millis() + _rateSunCalcMs / 2;
+    _firstIteration     = true;
 
     return true;
 }
 
 void Provider::deinit()
 {
-    if (!_topicPersistentSettings.isEmpty()) {
-        MqttSettings.unsubscribe(_topicPersistentSettings + "#");
-        _topicPersistentSettings.clear();
+    DTU_LOGI("Deinitializing Zendure provider");
+
+    if (!_topicPersistentSettingsSubscribe.isEmpty()) {
+        MqttSettings.unsubscribe(_topicPersistentSettingsSubscribe);
+        _topicPersistentSettingsSubscribe.clear();
     }
 }
 
 void Provider::loop()
 {
     auto ms = millis();
-    auto const& config = Configuration.get();
+    auto const& config = _stats->getConfig();
     const bool isDayPeriod = SunPosition.isSunsetAvailable() ? SunPosition.isDayPeriod() : true;
-    auto const chargeThroughState = _stats->_charge_through_state.value_or(ChargeThroughState::Disabled);
+
+    _stats->_sleeping = config.Zendure.AutoShutdown && !isDayPeriod;
 
     // if auto shutdown is enabled and battery switches to idle at night, turn off status requests to prevent keeping battery awake
-    if (config.Battery.Zendure.AutoShutdown && !isDayPeriod && _stats->_state == State::Idle) {
+    if (_stats->_sleeping && _stats->_state == State::Idle) {
         return;
     }
 
@@ -79,25 +86,25 @@ void Provider::loop()
         timesync();
 
         // update settings (will be skipped if unchanged)
-        setInverterMax(config.Battery.Zendure.MaxOutput);
+        setInverterMax(config.Zendure.MaxOutput);
 
         // republish settings - just to be sure
         writeSettings();
     }
 
     // prevent discharge if single pack SoC is below configured MinSoC
-    if (config.Battery.Zendure.BatteryProtectionEnable && _stats->_packSocMin.value_or(101) <= config.Battery.Zendure.MinSoC) {
-        if (_stats->_output_limit > 0 && _stats->_state == State::Discharging) {
-            DTU_LOGW("Calculated pack min SoC: %.1f %% is smaller than configured MinSoC of %" PRIu8 " %% - stop discharge!", *_stats->_packSocMin, config.Battery.Zendure.MinSoC);
+    if (config.Zendure.BatteryProtectionEnable && _stats->_packSocMin.value_or(101) <= config.Zendure.MinSoC) {
+        if (_stats->_output_limit > 0 && _stats->_state == State::Discharging && _stats->_controlState != ControlState::BatteryProtection) {
+            DTU_LOGW("Calculated pack min SoC: %.1f %% is smaller than configured MinSoC of %" PRIu8 " %% - stop discharge!", *_stats->_packSocMin, config.Zendure.MinSoC);
         }
         setControlState(ControlState::BatteryProtection);
     }
 
     if (_stats->_controlState == ControlState::BatteryProtection) {
         // force output limit to 0
-        setOutputLimit(0);
+        //setOutputLimit(0);
 
-        auto reenable_soc = config.Battery.Zendure.MinSoC + config.Battery.Zendure.MinSoCHysteresis;
+        auto reenable_soc = config.Zendure.MinSoC + config.Zendure.MinSoCHysteresis;
         if (_stats->_packSocMin.value_or(0) > reenable_soc) {
             DTU_LOGI("Calculated pack min SoC: %.1f %% is above configured MinSoC+Hysteresis of %.1f %% - resume normal operation!", *_stats->_packSocMin, reenable_soc);
             setControlState(ControlState::NormalOperation);
@@ -113,6 +120,13 @@ void Provider::loop()
     if (ms >= _nextSunCalc) {
         _nextSunCalc = ms + _rateSunCalcMs;
 
+        if (_firstIteration) {
+            checkChargeThrough();
+            _firstIteration = false;
+        }
+
+        auto const chargeThroughState = _stats->_charge_through_state.value_or(ChargeThroughState::Disabled);
+
         calculateFullChargeAge();
 
         struct tm timeinfo_local;
@@ -124,11 +138,11 @@ void Provider::loop()
             std::time_t sunset = 0;
 
             if (SunPosition.sunriseTime(&timeinfo_sun)) {
-                sunrise = std::mktime(&timeinfo_sun) + config.Battery.Zendure.SunriseOffset * 60;
+                sunrise = std::mktime(&timeinfo_sun) + config.Zendure.SunriseOffset * 60;
             }
 
             if (SunPosition.sunsetTime(&timeinfo_sun)) {
-                sunset = std::mktime(&timeinfo_sun) + config.Battery.Zendure.SunsetOffset * 60;
+                sunset = std::mktime(&timeinfo_sun) + config.Zendure.SunsetOffset * 60;
             }
 
             if (sunrise && sunset) {
@@ -142,11 +156,11 @@ void Provider::loop()
                 }
 
                 // running in appointment mode - set outputlimit accordingly
-                if (config.Battery.Zendure.OutputControl == BatteryZendureConfig::OutputControl_t::ControlSchedule && chargeThroughState != ChargeThroughState::Hard) {
+                if (config.Zendure.OutputControl == BatteryZendureConfig::OutputControl_t::ControlSchedule && chargeThroughState != ChargeThroughState::Hard) {
                     if (current >= sunrise && current < sunset) {
-                        setOutputLimit(min(config.Battery.Zendure.MaxOutput, config.Battery.Zendure.OutputLimitDay));
+                        setOutputLimit(min(config.Zendure.MaxOutput, config.Zendure.OutputLimitDay));
                     } else if (current >= sunset || current < sunrise) {
-                        setOutputLimit(min(config.Battery.Zendure.MaxOutput, config.Battery.Zendure.OutputLimitNight));
+                        setOutputLimit(min(config.Zendure.MaxOutput, config.Zendure.OutputLimitNight));
                     }
                 }
             }
@@ -158,19 +172,19 @@ void Provider::loop()
         switch (chargeThroughState) {
             case ChargeThroughState::Soft:
             case ChargeThroughState::Keep:
-                setTargetSoCs(config.Battery.Zendure.MinSoC, 100);
+                setTargetSoCs(config.Zendure.MinSoC, 100);
                 setBypassMode(BatteryZendureConfig::BypassMode_t::AlwaysOff);
-                setOutputLimit(config.Battery.Zendure.OutputLimit);
+                setOutputLimit(config.Zendure.OutputLimit);
                 break;
             case ChargeThroughState::Hard:
-                setTargetSoCs(config.Battery.Zendure.MinSoC, 100);
+                setTargetSoCs(config.Zendure.MinSoC, 100);
                 setBypassMode(BatteryZendureConfig::BypassMode_t::AlwaysOff);
                 setOutputLimit(0);
                 break;
             default:
-                setTargetSoCs(config.Battery.Zendure.MinSoC, config.Battery.Zendure.MaxSoC);
-                setBypassMode(config.Battery.Zendure.BypassMode);
-                setOutputLimit(config.Battery.Zendure.OutputLimit);
+                setTargetSoCs(config.Zendure.MinSoC, config.Zendure.MaxSoC);
+                setBypassMode(config.Zendure.BypassMode);
+                setOutputLimit(config.Zendure.OutputLimit);
                 break;
         }
 
@@ -208,13 +222,14 @@ void Provider::calculateFullChargeAge()
 
 void Provider::checkChargeThrough(uint32_t predictHours /* = 0 */)
 {
-    auto const& config = Configuration.get();
-    if (!config.Battery.Zendure.ChargeThroughEnable) {
+    auto const& config = _stats->getConfig();
+    if (!config.Zendure.ChargeThroughEnable) {
+        setChargeThroughState(ChargeThroughState::Disabled);
         return;
     }
 
     // hard charge through will start after configured interval (given in hours)
-    auto hardChargeThrough = config.Battery.Zendure.ChargeThroughInterval;
+    auto hardChargeThrough = config.Zendure.ChargeThroughInterval;
 
     // soft charge through will be triggered one day (aka. 24 hours) before hard charge through
     auto softChargeThrough = hardChargeThrough - 24;
@@ -260,7 +275,7 @@ uint16_t Provider::calcOutputLimit(uint16_t limit) const
 
 void Provider::setControlState(ControlState mode)
 {
-    if (Configuration.get().Battery.Zendure.OutputControl == BatteryZendureConfig::OutputControl_t::ControlNone) {
+    if (_stats->getConfig().Zendure.OutputControl == BatteryZendureConfig::OutputControl_t::ControlNone) {
         return;
     }
 
@@ -287,9 +302,9 @@ void Provider::setControlState(ControlState mode)
 
 uint16_t Provider::setOutputLimit(uint16_t limit) const
 {
-    auto const& config = Configuration.get();
+    auto const& config = _stats->getConfig();
 
-    if (config.Battery.Zendure.OutputControl == BatteryZendureConfig::OutputControl_t::ControlNone ||
+    if (config.Zendure.OutputControl == BatteryZendureConfig::OutputControl_t::ControlNone ||
         _topicWrite.isEmpty() || !alive()) {
         return _stats->_output_limit.value_or(0);
     }
@@ -299,7 +314,7 @@ uint16_t Provider::setOutputLimit(uint16_t limit) const
     }
 
     // keep limit below MaxOutput
-    limit = min(config.Battery.Zendure.MaxOutput, limit);
+    limit = min(config.Zendure.MaxOutput, limit);
 
     if (_stats->_output_limit != limit) {
         limit = calcOutputLimit(limit);
@@ -579,6 +594,9 @@ void Provider::calculatePackStats(const uint64_t timestamp)
         _stats->setCurrent(*current, 1, timestamp);
     }
 
+    _stats->_capacity = capacity;
+    _stats->_capacity_avail = capacity_avail;
+
     _stats->_packSocMin = socMin;
     _stats->_cellMinMilliVolt = cellMin;
     _stats->_cellMaxMilliVolt = cellMax;
@@ -612,7 +630,7 @@ void Provider::calculateEfficiency()
 void Provider::setSoC(const float soc, const uint32_t timestamp /* = 0 */, const uint8_t precision /* = 2 */)
 {
     time_t now;
-    auto const& config = Configuration.get();
+    auto const& config = _stats->getConfig();
     auto const chargeThroughState = _stats->_charge_through_state.value_or(ChargeThroughState::Disabled);
 
     if (Utils::getEpoch(&now)) {
@@ -624,7 +642,7 @@ void Provider::setSoC(const float soc, const uint32_t timestamp /* = 0 */, const
                 setChargeThroughState(ChargeThroughState::Keep);
             }
         }
-        if (soc < static_cast<float>(config.Battery.Zendure.ChargeThroughResetLevel) && chargeThroughState == ChargeThroughState::Keep) {
+        if (soc < static_cast<float>(config.Zendure.ChargeThroughResetLevel) && chargeThroughState == ChargeThroughState::Keep) {
             setChargeThroughState(ChargeThroughState::Idle);
         }
         if (soc <= 0.0) {
@@ -639,6 +657,11 @@ void Provider::setSoC(const float soc, const uint32_t timestamp /* = 0 */, const
 void Provider::onMqttMessagePersistentSettings(espMqttClientTypes::MessageProperties const& properties,
         char const* topic, uint8_t const* payload, size_t len)
 {
+    if (!String(topic).startsWith(_topicPersistentSettingsPublish)) {
+        DTU_LOGW("Ignoreing Settings received on topic '%s' - expecting '%s#'", topic, _topicPersistentSettingsPublish.c_str());
+        return;
+    }
+
     String t(topic);
     String string(reinterpret_cast<const char*>(payload), len);
     auto integer = static_cast<uint64_t>(string.toInt());
@@ -660,7 +683,7 @@ void Provider::onMqttMessagePersistentSettings(espMqttClientTypes::MessageProper
         auto mode = Stats::chargeThroughStateFromString(string);
         if (mode.has_value()) {
             // if we recieve disabled state but configuration is set to enabled, overwrite with IDLE state
-            if (Configuration.get().Battery.Zendure.ChargeThroughEnable && mode == ChargeThroughState::Disabled) {
+            if (_stats->getConfig().Zendure.ChargeThroughEnable && mode == ChargeThroughState::Disabled) {
                 mode = ChargeThroughState::Idle;
             }
 
@@ -677,12 +700,12 @@ void Provider::onMqttMessagePersistentSettings(espMqttClientTypes::MessageProper
 
 void Provider::publishPersistentSettings(const char* subtopic, const String& payload)
 {
-    if (!_topicPersistentSettings.isEmpty())
+    if (!_topicPersistentSettingsPublish.isEmpty())
     {
         DTU_LOGD("Writing Persistent Settings %s = %s",
-                String(_topicPersistentSettings + subtopic).c_str(),
+                String(_topicPersistentSettingsPublish + subtopic).c_str(),
                 payload.substring(0, 32).c_str());
-        MqttSettings.publishGeneric(_topicPersistentSettings + subtopic, payload, true);
+        MqttSettings.publishGeneric(_topicPersistentSettingsPublish + subtopic, payload, true);
     }
 }
 

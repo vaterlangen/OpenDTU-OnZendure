@@ -336,7 +336,7 @@ void DisplayGraphicClass::loop()
     bool timing = (_mExtra % 9) >= 3;
 
     bool powerMeterAvailable = Configuration.get().PowerMeter.Enabled;
-    bool batteryAvailable = Configuration.get().Battery.Enabled && Battery.getStats()->isSoCValid();
+    bool batteryAvailable = Configuration.get().Battery->Enabled && Battery.getStats()->isSoCValid();
 
     if (showText && timing && !displayPowerSave && (powerMeterAvailable || batteryAvailable)) {
         // erase the third line and print the battery SoC or power meter value instead.

@@ -87,7 +87,7 @@ void WebApiWsBatteryLiveClass::sendDataTaskCb()
         std::lock_guard<std::mutex> lock(_mutex);
         JsonDocument root;
         JsonVariant var = root;
-        
+
         generateCommonJsonResponse(var);
 
         if (Utils::checkJsonAlloc(root, __FUNCTION__, __LINE__)) {
@@ -115,7 +115,8 @@ void WebApiWsBatteryLiveClass::sendDataTaskCb()
 
 void WebApiWsBatteryLiveClass::generateCommonJsonResponse(JsonVariant& root)
 {
-    Battery.getStats()->getLiveViewData(root);
+    //Battery.getStats()->getLiveViewData(root);
+    Battery.getLiveViewData(root);
 }
 
 void WebApiWsBatteryLiveClass::onWebsocketEvent(AsyncWebSocket* server, AsyncWebSocketClient* client, AwsEventType type, void* arg, uint8_t* data, size_t len)

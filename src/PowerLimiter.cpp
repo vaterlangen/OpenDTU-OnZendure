@@ -320,7 +320,7 @@ void PowerLimiterClass::loop()
 
     if (usesBatteryPoweredInverter()) {
         DTU_LOGD("battery interface %sabled, SoC %.1f %% (%s), age %u s (%s)",
-                (config.Battery.Enabled?"en":"dis"),
+                (config.Battery->Enabled?"en":"dis"),
                 Battery.getStats()->getSoC(),
                 (config.PowerLimiter.IgnoreSoc?"ignored":"used"),
                 Battery.getStats()->getSoCAgeSeconds(),
@@ -442,7 +442,7 @@ float PowerLimiterClass::getBatteryVoltage(bool log) const {
 
     float bmsVoltage = -1;
     auto stats = Battery.getStats();
-    if (config.Battery.Enabled
+    if (config.Battery->Enabled
             && stats->isVoltageValid()
             && stats->getVoltageAgeSeconds() < 60) {
         res = bmsVoltage = stats->getVoltage();
@@ -823,7 +823,7 @@ bool PowerLimiterClass::testThreshold(float socThreshold, float voltThreshold,
     // prefer SoC provided through battery interface, unless disabled by user
     auto stats = Battery.getStats();
     if (!config.PowerLimiter.IgnoreSoc
-            && config.Battery.Enabled
+            && config.Battery->Enabled
             && socThreshold > 0.0
             && stats->isSoCValid()
             && stats->getSoCAgeSeconds() < 60) {
