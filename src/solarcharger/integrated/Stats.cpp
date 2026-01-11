@@ -97,11 +97,12 @@ void Stats::getLiveViewData(JsonVariant& root, const boolean fullUpdate, const u
     DTU_LOGV("LIVE EXIT");
 }
 
-DeviceData::DeviceData(const String& manufacture, const String& device, const String& serial, const size_t numMppts /* = 0 */)
+DeviceData::DeviceData(const String& manufacture, const String& device, const String& serial, const size_t numMppts /* = 0 */, const std::optional<String>& name /* = std::nullopt */)
     : _manufacture(manufacture)
     , _device(device)
     , _serial(serial)
     , _numMppts(numMppts)
+    , _name(name)
 {
     DTU_LOGV("DeviceData(): assert(%d <= 4)", numMppts);
 
@@ -119,18 +120,18 @@ DeviceData::~DeviceData() {
     _mppts.clear();
 }
 
-std::optional<std::pair<uint32_t, std::shared_ptr<DeviceData>>> Stats::addDevice(std::optional<String> const& manufacture, std::optional<String> const& device, std::optional<String> const& serial, const size_t numMppts) {
+std::optional<std::pair<uint32_t, std::shared_ptr<DeviceData>>> Stats::addDevice(std::optional<String> const& manufacture, std::optional<String> const& device, std::optional<String> const& serial, const size_t numMppts, std::optional<String> const& name /*= std::nullopt */) {
     if (numMppts < 1 || numMppts > 4 || !serial || !device || !manufacture) {
         return std::nullopt;
     }
 
     // calculate CRC32 of device data to generate an (almost) unique identifier to be used as key in the map
-    const String name = *manufacture + *device + *serial + String(numMppts);
+    const String hashvalue = *manufacture + *device + *serial + String(numMppts);
     CRC32 crc(CRC32_POLYNOME, CRC32_INITIAL, CRC32_XOR_OUT, false, false);
-    crc.add(reinterpret_cast<const uint8_t*>(name.c_str()), name.length());
+    crc.add(reinterpret_cast<const uint8_t*>(hashvalue.c_str()), hashvalue.length());
     const uint32_t hash = crc.calc();
 
-    auto new_device = std::make_shared<DeviceData>(*manufacture, *device, *serial, numMppts);
+    auto new_device = std::make_shared<DeviceData>(*manufacture, *device, *serial, numMppts, name);
     DTU_LOGV("addDevice(): hash=0x%X, new_device=0x%p", hash, static_cast<void*>(&*new_device));
 
     // check if the device already exits

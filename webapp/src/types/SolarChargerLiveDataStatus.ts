@@ -10,7 +10,10 @@ export interface SolarCharger {
     instances: { [key: string]: SolarChargerInstance };
 }
 
-type MpptData = (ValueObject | string)[];
+interface MpptData {
+    [key: string]: ValueObject | string;
+}
+//type MpptData = (ValueObject | string)[];
 
 export interface SolarChargerInstance {
     data_age_ms: number;
