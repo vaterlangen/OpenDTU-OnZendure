@@ -1,13 +1,72 @@
 <template>
-    <div class="text-center" v-if="dataLoading">
-        <div class="spinner-border" role="status">
-            <span class="visually-hidden">Loading...</span>
+    <div class="row gy-3 mt-0">
+        <div
+            class="col-sm-3 col-md-2"
+            :style="[Object.keys(solarcharger.instances).length == 1 ? { display: 'none' } : {}]"
+        >
+            <div
+                class="nav nav-pills row-cols-sm-1 gap-3"
+                id="v-pills-solarcharger-tab"
+                role="tablist"
+                aria-orientation="vertical"
+            >
+                <button
+                    v-for="(item, serial) in solarcharger.instances"
+                    :key="serial"
+                    class="nav-link border border-primary text-break"
+                    :id="'v-pills-solarcharger-' + serial + '-tab'"
+                    data-bs-toggle="pill"
+                    :data-bs-target="'#v-pills-solarcharger-' + serial"
+                    type="button"
+                    role="tab"
+                    aria-controls="'v-pills-solarcharger-' + serial"
+                    aria-selected="true"
+                >
+                    <div class="d-flex align-items-center">
+                        <div class="me-2" style="padding-right: 4px">
+                            <BIconSunFill style="font-size: 24px" />
+                        </div>
+                        <div class="me-2">
+                            <span
+                                class="badge"
+                                :class="{
+                                    'text-bg-danger': item.data_age_ms >= item.max_age_ms,
+                                    'text-bg-success': item.data_age_ms < item.max_age_ms,
+                                }"
+                            >
+                                {{ $n(getTotalPower(item), 'decimalNoDigits') }} W
+                            </span>
+                        </div>
+                        <div class="ms-auto me-auto">
+                            <template v-if="item.product_id === 'MQTT'">
+                                {{ $t('solarchargerhome.MqttProduct') }}
+                            </template>
+                            <template v-else>
+                                {{ item.product_id }}
+                            </template>
+                        </div>
+                    </div>
+                </button>
+            </div>
         </div>
-    </div>
 
-    <template v-else>
-        <div class="row gy-3 mt-0" v-for="(item, serial) in solarcharger.instances" :key="serial">
-            <div class="tab-content col-sm-12 col-md-12" id="v-pills-tabContent">
+        <div
+            class="tab-content"
+            id="v-pills-solarcharger-tabContent"
+            :class="{
+                'col-sm-9 col-md-10': Object.keys(solarcharger.instances).length > 1,
+                'col-sm-12 col-md-12': Object.keys(solarcharger.instances).length == 1,
+            }"
+        >
+            <div
+                v-for="(item, serial) in solarcharger.instances"
+                :key="serial"
+                class="tab-pane fade show"
+                :id="'v-pills-solarcharger-' + serial"
+                role="tabpanel"
+                :aria-labelledby="'v-pills-solarcharger-' + serial + '-tab'"
+                tabindex="0"
+            >
                 <div class="card">
                     <div
                         class="card-header d-flex justify-content-between align-items-center"
@@ -114,16 +173,17 @@
                 </div>
             </div>
         </div>
-    </template>
+    </div>
 </template>
 
 <script lang="ts">
 import { defineComponent } from 'vue';
-import type { DynamicPowerLimiter, SolarCharger } from '@/types/SolarChargerLiveDataStatus';
+import type { DynamicPowerLimiter, SolarCharger, SolarChargerInstance } from '@/types/SolarChargerLiveDataStatus';
 import { handleResponse, authHeader, authUrl } from '@/utils/authentication';
-import { BIconSun, BIconBatteryCharging, BIconBatteryHalf, BIconXCircleFill } from 'bootstrap-icons-vue';
+import { BIconSun, BIconBatteryCharging, BIconBatteryHalf, BIconXCircleFill, BIconSunFill } from 'bootstrap-icons-vue';
 import DataAgeDisplay from '@/components/DataAgeDisplay.vue';
 import WebSocketService from '@/utils/websocketService';
+import * as bootstrap from 'bootstrap';
 
 export default defineComponent({
     components: {
@@ -131,6 +191,7 @@ export default defineComponent({
         BIconBatteryCharging,
         BIconBatteryHalf,
         BIconXCircleFill,
+        BIconSunFill,
         DataAgeDisplay,
     },
     data() {
@@ -152,6 +213,24 @@ export default defineComponent({
         this.socket?.close();
         Object.values(this.dataAgeTimers).forEach((timer) => clearInterval(timer));
         this.dataAgeTimers = {};
+    },
+    updated() {
+        console.log('Updated');
+        // Select first tab
+        if (this.isFirstFetchAfterConnect) {
+            console.log('isFirstFetchAfterConnect');
+
+            this.$nextTick(() => {
+                console.log('nextTick');
+                const firstTabEl = document.querySelector('#v-pills-solarcharger-tab:first-child button');
+                if (firstTabEl != null) {
+                    this.isFirstFetchAfterConnect = false;
+                    console.log('Show');
+                    const firstTab = new bootstrap.Tab(firstTabEl);
+                    firstTab.show();
+                }
+            });
+        }
     },
     methods: {
         getInitialData() {
@@ -225,6 +304,29 @@ export default defineComponent({
             this.dataAgeTimers[serial] = setTimeout(() => {
                 this.doDataAging(serial);
             }, 1000);
+        },
+        getValue(entity: SolarChargerInstance, name: string, section: string, fallback: number = 0): number {
+            if (!entity || !name || !section || !entity.values) {
+                return fallback;
+            }
+            const value = entity.values[section]?.[name];
+            if (value === undefined || typeof value !== 'object') {
+                return fallback;
+            }
+
+            return value.v === undefined ? fallback : value.v;
+        },
+        getTotalPower(entity: SolarChargerInstance): number {
+            let sum = 0;
+            if (entity?.values) {
+                for (const [section, values] of Object.entries(entity.values)) {
+                    // Only process MPPT sections that contain power data
+                    if (section.startsWith('mppt') && typeof values === 'object') {
+                        sum += this.getValue(entity, 'Power', section);
+                    }
+                }
+            }
+            return sum;
         },
     },
 });

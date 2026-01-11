@@ -11,7 +11,12 @@ namespace SolarChargers::Integrated {
 
 bool Provider::init()
 {
-    if (Configuration.get().Battery.Provider == 7) { return true; }
+    const auto& config = Configuration.get();
+
+    for (uint8_t i = 0; i < BAT_MAX_COUNT; i++) {
+        const auto& cfg = config.Batteries[i];
+        if (cfg.Provider == 7 && cfg.Enabled) { return true;}
+    }
 
     DTU_LOGE("Init failed - you must use a supported battery integration. Currently supported integrations are: Zendure");
     return false;

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #pragma once
 
-#include <MqttSettings.h>
 #include <battery/SmartBufferStats.h>
 #include <battery/zendure/Constants.h>
 #include <solarcharger/Controller.h>
@@ -206,6 +205,21 @@ public:
         return getSolarPowerOverall();
     }
 
+    virtual std::optional<uint32_t> getCapacityWh() const {
+        return _capacity;
+    }
+
+    virtual bool isSleeping() const { return _sleeping; };
+    virtual bool isProducing() const { return _output_power != 0; };
+    virtual float getLimit() const {
+        auto inv_max = _inverse_max.value_or(0);
+        return static_cast<float>(std::min(_output_limit.value_or(inv_max), inv_max));
+    };
+
+    virtual float getPower() const {
+        return _charge_power.value_or(0) - _discharge_power.value_or(0);
+    }
+
 protected:
     std::shared_ptr<PackStats> getPackData(size_t index) const;
     std::shared_ptr<PackStats> addPackData(size_t index, String serial);
@@ -253,17 +267,17 @@ private:
     void setLastUpdate(uint32_t ts) { _lastUpdate = ts; }
 
     template<typename T>
-    inline static void publish(const String &topic, const T &payload, [[maybe_unused]] const size_t precision = 0) {
+    inline void publish(const String &topic, const T &payload, [[maybe_unused]] const size_t precision = 0) const {
         if constexpr (std::is_same_v<T, float> || std::is_same_v<T, double>) {
-            MqttSettings.publish(topic, String(payload, precision));
+            ::Batteries::Stats::publish(topic, String(payload, precision));
             return;
         }
 
-        MqttSettings.publish(topic, String(payload));
+        ::Batteries::Stats::publish(topic, String(payload));
     }
 
     template<typename T>
-    inline static void publish(const String &topic, const std::optional<T> &payload, const size_t precision = 0) {
+    inline void publish(const String &topic, const std::optional<T> &payload, const size_t precision = 0) const {
         if (!payload.has_value()) {
             return;
         }
@@ -408,6 +422,8 @@ private:
     std::map<size_t, std::shared_ptr<PackStats>> _packData = std::map<size_t, std::shared_ptr<PackStats> >();
 
     std::optional<uint32_t> _solarcharger_id = std::nullopt;
+
+    bool _sleeping = true;
 
     std::optional<float> _cellTemperature = std::nullopt;
     std::optional<uint16_t> _cellMinMilliVolt = std::nullopt;
