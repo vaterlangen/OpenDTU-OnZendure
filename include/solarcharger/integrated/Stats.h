@@ -47,7 +47,7 @@ class DeviceData {
     friend class Stats;
 
 public:
-    DeviceData(const String& manufacture, const String& device, const String& serial, const size_t numMppts = 0, const std::optional<String>& name = std::nullopt);
+    DeviceData(const String& manufacture, const String& device, const String& serial, const size_t numMppts = 0, const std::optional<String>& name = std::nullopt, const size_t order = 0);
     virtual ~DeviceData();
 
     uint32_t getLastUpdate() const {
@@ -83,6 +83,10 @@ public:
         return _serial;
     }
 
+    inline size_t getOrder() {
+        return _order;
+    }
+
     inline const std::map<MPPT, std::shared_ptr<MpptData>> & getMppts() {
         return _mppts;
     }
@@ -94,6 +98,7 @@ private:
     String _serial;
     size_t _numMppts;
     std::optional<String> _name = std::nullopt;
+    size_t _order;
 
     std::map<MPPT, std::shared_ptr<MpptData>> _mppts = std::map<MPPT, std::shared_ptr<MpptData>>();
 };
@@ -126,7 +131,7 @@ public:
     // no need to republish values received via mqtt
     void mqttPublishSensors(const boolean forcePublish) const final {}
 
-    std::optional<std::pair<uint32_t, std::shared_ptr<DeviceData>>> addDevice(std::optional<String> const& manufacture, std::optional<String> const& device, std::optional<String> const& serial, const size_t numMppts, std::optional<String> const& name = std::nullopt);
+    std::optional<std::pair<uint32_t, std::shared_ptr<DeviceData>>> addDevice(std::optional<String> const& manufacture, std::optional<String> const& device, std::optional<String> const& serial, const size_t numMppts, std::optional<String> const& name = std::nullopt, const size_t order = 0);
 
     inline bool hasDevice(std::optional<const uint32_t> id) const {
         return id.has_value() ? static_cast<bool>(_devices.count(*id)) : false;

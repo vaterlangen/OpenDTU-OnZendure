@@ -91,7 +91,7 @@ private:
         _objects.clear();
 
         // amd try to re-add our device
-        auto result = mppt->addDevice(getManufacturer(), getDeviceName(), getSerial(), getNumberMppts(), getName());
+        auto result = mppt->addDevice(getManufacturer(), getDeviceName(), getSerial(), getNumberMppts(), getName(), getConfig().Order);
         if (!result.has_value()) { return {}; }
 
         _solarcharger_id = (*result).first;
