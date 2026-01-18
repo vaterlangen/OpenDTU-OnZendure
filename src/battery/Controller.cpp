@@ -139,7 +139,7 @@ void Controller::updateSettings()
                 break;
             case 7:
                 DTU_LOGD("Enabling ZENDURE battery on slot #%d", i);
-                switch (bat_cfg.Zendure.ConnectionType) {
+                switch (bat_cfg.Zendure->ConnectionType) {
                     case BatteryZendureConfig::ConnectionType::LocalMqtt:
                         _upProvider = std::make_shared<Zendure::LocalMqttProvider>();
                         break;
@@ -147,7 +147,7 @@ void Controller::updateSettings()
                         _upProvider = std::make_shared<Zendure::ZendureMqttProvider>();
                         break;
                     default:
-                        DTU_LOGE("Unknown Zendure connection type: %d", bat_cfg.Zendure.ConnectionType);
+                        DTU_LOGE("Unknown Zendure connection type: %d", bat_cfg.Zendure->ConnectionType);
                         break;
                 }
                 break;
@@ -203,6 +203,19 @@ void Controller::getLiveViewData(JsonVariant& root) const
         JsonVariant bat = array.add<JsonObject>();
         stats->getLiveViewData(bat);
     }
+}
+
+bool Controller::updateAvailable(uint32_t since) const
+{
+    if (_batteries.empty()) { return false; }
+
+    for (auto& battery : _batteries) {
+        if (battery->getStats()->updateAvailable(since)) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 float Controller::getDischargeCurrentLimit()

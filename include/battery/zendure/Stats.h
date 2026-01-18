@@ -93,6 +93,16 @@ class Stats : public ::Batteries::SmartBufferStats {
         return invalid;
     }
 
+    static std::optional<ControlState> controlStateFromString(String value) {
+        for (auto entry : _controlStateStrings) {
+            if (String(entry.second) == value) {
+                return entry.first;
+            }
+        }
+
+        return std::nullopt;
+    }
+
     static const char* chargeThroughStateToString(std::optional<ChargeThroughState> mode) {
         if (!mode.has_value()) {
             return invalid;
@@ -217,7 +227,7 @@ public:
     }
 
     virtual bool isSleeping() const { return _sleeping; };
-    virtual bool isProducing() const { return _output_power != 0; };
+    virtual bool isProducing() const { return _output_power > 0; };
     virtual float getLimit() const {
         auto inv_max = _inverse_max.value_or(0);
         return static_cast<float>(std::min(_output_limit.value_or(inv_max), inv_max));

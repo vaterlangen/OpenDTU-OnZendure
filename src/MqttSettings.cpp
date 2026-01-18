@@ -160,6 +160,9 @@ void MqttSettingsClass::performConnect()
             static_cast<espMqttClient*>(_mqttClient)->onMessage(std::bind(&MqttSettingsClass::onMqttMessage, this, _1, _2, _3, _4, _5, _6));
         }
         _mqttClient->connect();
+    } else {
+        _mqttReconnectTimer.once(
+            10, +[](MqttSettingsClass* instance) { instance->performConnect(); }, this);
     }
 }
 

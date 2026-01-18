@@ -47,6 +47,15 @@ protected:
     std::shared_ptr<Stats> _stats = std::make_shared<Stats>();
     std::shared_ptr<HassIntegration> _hassIntegration;
 
+    bool isReachable() const {
+        if (_lastSeen == 0) {
+            return false;
+        }
+        return (_lastSeen - millis()) < 90;
+    }
+
+    void setLastSeen(uint64_t ms) { _lastSeen = ms; }
+
     uint32_t _messageCounter = 0;
 
     String _topicLog = String();
@@ -73,7 +82,7 @@ private:
     void calculateFullChargeAge();
     void rescheduleSunCalc() { _nextSunCalc = 0; }
     void publishPersistentSettings(const char* subtopic, const String& payload);
-    void setControlState(ControlState mode);
+    void setControlState(ControlState mode, const bool publish = true);
 
     uint32_t _rateFullUpdateMs = 0;
     uint64_t _nextFullUpdate = 0;
@@ -83,6 +92,11 @@ private:
 
     uint32_t _rateSunCalcMs = 0;
     uint64_t _nextSunCalc = 0;
+
+    uint32_t _rateOutputCalcMs = 0;
+    uint64_t _nextOutputCalc = 0;
+
+    uint64_t _lastSeen = 0;
 
     bool _firstIteration = true;
 };
