@@ -4,14 +4,14 @@
             {{ alert.message }}
         </BootstrapAlert>
 
-        <CardElement :text="$t('batteryadmin.addBattery')" textVariant="text-bg-primary">
+        <CardElement :text="$t('batteryadmin.batteryAdd')" textVariant="text-bg-primary">
             <form class="form-inline" v-on:submit.prevent="onSubmit">
                 <div class="form-group">
                     <label>{{ $t('batteryadmin.provider') }}</label>
                     <div class="col-sm-8">
                         <select class="form-select" v-model="newBatteryData.provider">
                             <option v-if="batteries.length > 1" :key="7" :value="7">
-                                {{ $t('batteryadmin.provider.ZendureMqtt') }}
+                                {{ $t('batteryadmin.providers.zendure') }}
                             </option>
                             <option
                                 v-else
@@ -19,7 +19,7 @@
                                 :key="provider.key"
                                 :value="provider.key"
                             >
-                                {{ $t('batteryadmin.provider.' + provider.value) }}
+                                {{ $t('batteryadmin.providers.' + provider.value) }}
                             </option>
                         </select>
                     </div>
@@ -36,11 +36,11 @@
                 </div>
                 <div class="d-flex my-3">
                     <button type="submit" class="btn btn-primary ms-auto">
-                        {{ $t('batteryadmin.add') }}
+                        {{ $t('batteryadmin.buttons.add') }}
                     </button>
                 </div>
             </form>
-            <div class="alert alert-secondary" role="alert" v-html="$t('batteryadmin.addHint')"></div>
+            <div class="alert alert-secondary" role="alert" v-html="$t('batteryadmin.batteryAddHint')"></div>
         </CardElement>
 
         <CardElement :text="$t('batteryadmin.batteryList')" textVariant="text-bg-primary" add-space>
@@ -51,7 +51,7 @@
                             <th>#</th>
                             <th scope="col">{{ $t('batteryadmin.status') }}</th>
                             <th>{{ $t('batteryadmin.name') }}</th>
-                            <th>{{ $t('batteryadmin.type') }}</th>
+                            <th>{{ $t('batteryadmin.provider') }}</th>
                             <th>{{ $t('batteryadmin.action') }}</th>
                         </tr>
                     </thead>
@@ -73,16 +73,16 @@
                             <td>
                                 {{
                                     $t(
-                                        'batteryadmin.provider.' +
+                                        'batteryadmin.providers.' +
                                             providerTypeList.find((p) => p.key === battery.provider)?.value || 'unknown'
                                     )
                                 }}
                             </td>
                             <td>
-                                <a href="#" class="icon text-danger" :title="$t('batteryadmin.deleteBattery')">
+                                <a href="#" class="icon text-danger" :title="$t('batteryadmin.buttons.deleteBattery')">
                                     <BIconTrash v-on:click="onOpenModal(modalDelete, battery)" /> </a
                                 >&nbsp;
-                                <a href="#" class="icon" :title="$t('batteryadmin.editBattery')">
+                                <a href="#" class="icon" :title="$t('batteryadmin.buttons.editBattery')">
                                     <BIconPencil v-on:click="onOpenModal(modal, battery)" />
                                 </a>
                             </td>
@@ -92,13 +92,17 @@
             </div>
             <div class="d-flex mt-1 mb-3">
                 <button class="btn btn-primary ms-auto" @click="onSaveOrder()">
-                    {{ $t('batteryadmin.saveOrder') }}
+                    {{ $t('batteryadmin.buttons.saveOrder') }}
                 </button>
             </div>
         </CardElement>
     </BasePage>
 
-    <ModalDialog modalId="batteryEdit" :title="$t('batteryadmin.editBattery')" :closeText="$t('batteryadmin.cancel')">
+    <ModalDialog
+        modalId="batteryEdit"
+        :title="$t('batteryadmin.batteryEdit')"
+        :closeText="$t('batteryadmin.buttons.cancel')"
+    >
         <nav>
             <div class="nav nav-tabs" id="nav-tab" role="tablist">
                 <button
@@ -111,7 +115,7 @@
                     aria-controls="nav-general"
                     aria-selected="true"
                 >
-                    {{ $t('batteryadmin.general') }}
+                    {{ $t('batteryadmin.tabs.general') }}
                 </button>
                 <button
                     class="nav-link"
@@ -122,7 +126,7 @@
                     role="tab"
                     aria-controls="nav-connection"
                 >
-                    {{ $t('batteryadmin.connection') }}
+                    {{ $t('batteryadmin.tabs.connection') }}
                 </button>
                 <button
                     class="nav-link"
@@ -133,7 +137,7 @@
                     role="tab"
                     aria-controls="nav-settings"
                 >
-                    {{ $t('batteryadmin.settings') }}
+                    {{ $t('batteryadmin.tabs.settings') }}
                 </button>
                 <button
                     class="nav-link"
@@ -144,7 +148,7 @@
                     role="tab"
                     aria-controls="nav-extended"
                 >
-                    {{ $t('batteryadmin.extended') }}
+                    {{ $t('batteryadmin.tabs.advanced') }}
                 </button>
             </div>
         </nav>
@@ -158,7 +162,7 @@
             >
                 <CardElement
                     :text="
-                        $t('batteryadmin.generalHeading', {
+                        $t('batteryadmin.general.heading', {
                             provider: $t(
                                 'batteryadmin.provider.' +
                                     providerTypeList.find((p) => p.key === selectedBatteryData.provider)?.value ||
@@ -172,12 +176,12 @@
                     addSpace
                 >
                     <InputElement
-                        :label="$t('batteryadmin.enabled')"
+                        :label="$t('batteryadmin.general.enabled')"
                         v-model="selectedBatteryData.enabled"
                         type="checkbox"
                     />
                     <InputElement
-                        :label="$t('batteryadmin.name')"
+                        :label="$t('batteryadmin.general.name')"
                         v-model="selectedBatteryData.name"
                         type="text"
                         maxlength="31"
@@ -185,12 +189,12 @@
                 </CardElement>
 
                 <CardElement
-                    :text="$t('batteryadmin.DischargeCurrentLimitConfiguration')"
+                    :text="$t('batteryadmin.dischargeCurrentLimit.heading')"
                     textVariant="text-bg-primary"
                     addSpace
                 >
                     <InputElement
-                        :label="$t('batteryadmin.LimitDischargeCurrent')"
+                        :label="$t('batteryadmin.dischargeCurrentLimit.enable')"
                         v-model="selectedBatteryData.enable_discharge_current_limit"
                         type="checkbox"
                         wide
@@ -198,7 +202,7 @@
 
                     <template v-if="selectedBatteryData.enable_discharge_current_limit">
                         <InputElement
-                            :label="$t('batteryadmin.DischargeCurrentLimit')"
+                            :label="$t('batteryadmin.dischargeCurrentLimit.max')"
                             v-model="selectedBatteryData.discharge_current_limit"
                             type="number"
                             min="0"
@@ -208,7 +212,7 @@
                         />
 
                         <InputElement
-                            :label="$t('batteryadmin.DischargeCurrentLimitBelowSoc')"
+                            :label="$t('batteryadmin.dischargeCurrentLimit.belowSoc')"
                             v-if="selectedBatteryData.enabled"
                             v-model="selectedBatteryData.discharge_current_limit_below_soc"
                             type="number"
@@ -216,12 +220,12 @@
                             max="100"
                             step="0.1"
                             postfix="%"
-                            :tooltip="$t('batteryadmin.DischargeCurrentLimitBelowSocInfo')"
+                            :tooltip="$t('batteryadmin.dischargeCurrentLimit.belowSocInfo')"
                             wide
                         />
 
                         <InputElement
-                            :label="$t('batteryadmin.DischargeCurrentLimitBelowVoltage')"
+                            :label="$t('batteryadmin.dischargeCurrentLimit.belowVoltage')"
                             v-if="selectedBatteryData.enabled"
                             v-model="selectedBatteryData.discharge_current_limit_below_voltage"
                             type="number"
@@ -229,7 +233,7 @@
                             max="60"
                             step="0.01"
                             postfix="V"
-                            :tooltip="$t('batteryadmin.DischargeCurrentLimitBelowVoltageInfo')"
+                            :tooltip="$t('batteryadmin.dischargeCurrentLimit.belowVoltageInfo')"
                             wide
                         />
 
@@ -243,7 +247,7 @@
                             "
                         >
                             <InputElement
-                                :label="$t('batteryadmin.UseBatteryReportedDischargeCurrentLimit')"
+                                :label="$t('batteryadmin.dischargeCurrentLimit.useBatteryLimit')"
                                 v-model="selectedBatteryData.use_battery_reported_discharge_current_limit"
                                 type="checkbox"
                                 wide
@@ -254,12 +258,12 @@
                                     class="alert alert-secondary"
                                     role="alert"
                                     v-if="selectedBatteryData.enabled"
-                                    v-html="$t('batteryadmin.BatteryReportedDischargeCurrentLimitInfo')"
+                                    v-html="$t('batteryadmin.dischargeCurrentLimit.useBatteryLimitInfo')"
                                 ></div>
 
                                 <template v-if="selectedBatteryData.provider == 2">
                                     <InputElement
-                                        :label="$t('batteryadmin.MqttDischargeCurrentLimitTopic')"
+                                        :label="$t('batteryadmin.dischargeCurrentLimit.mqttLimitTopic')"
                                         v-model="selectedBatteryData.mqtt.discharge_current_limit_topic"
                                         wide
                                         type="text"
@@ -267,17 +271,17 @@
                                     />
 
                                     <InputElement
-                                        :label="$t('batteryadmin.MqttJsonPath')"
+                                        :label="$t('batteryadmin.dischargeCurrentLimit.mqttLimitJsonPath')"
                                         v-model="selectedBatteryData.mqtt.discharge_current_limit_json_path"
                                         wide
                                         type="text"
                                         maxlength="256"
-                                        :tooltip="$t('batteryadmin.MqttJsonPathDescription')"
+                                        :tooltip="$t('batteryadmin.dischargeCurrentLimit.mqttLimitJsonPathInfo')"
                                     />
 
                                     <div class="row mb-3">
                                         <label for="discharge_current_limit_unit" class="col-sm-4 col-form-label">
-                                            {{ $t('batteryadmin.MqttAmperageUnit') }}
+                                            {{ $t('batteryadmin.dischargeCurrentLimit.mqttAmperageUnit') }}
                                         </label>
 
                                         <div class="col-sm-8">
@@ -309,7 +313,7 @@
                 <template v-if="selectedBatteryData.provider == 1 || selectedBatteryData.provider == 6">
                     <div class="row mb-3">
                         <label class="col-sm-4 col-form-label">
-                            {{ $t('batteryadmin.SerialInterfaceType') }}
+                            {{ $t('batteryadmin.serial.interfaceType') }}
                         </label>
                         <div class="col-sm-8">
                             <select class="form-select" v-model="selectedBatteryData.serial.interface">
@@ -318,7 +322,7 @@
                                     :key="serialInterface.key"
                                     :value="serialInterface.key"
                                 >
-                                    {{ $t(`batteryadmin.SerialInterfaceType` + serialInterface.value) }}
+                                    {{ $t(`batteryadmin.Sserial.interfaceTypes.` + serialInterface.value) }}
                                 </option>
                             </select>
                         </div>
@@ -336,9 +340,13 @@
                     />
                 </template>
                 <template v-if="selectedBatteryData.enabled && selectedBatteryData.provider == 2">
-                    <CardElement :text="$t('batteryadmin.MqttSocConfiguration')" textVariant="text-bg-primary" addSpace>
+                    <CardElement
+                        :text="$t('batteryadmin.mqtt.socConfiguration')"
+                        textVariant="text-bg-primary"
+                        addSpace
+                    >
                         <InputElement
-                            :label="$t('batteryadmin.MqttSocTopic')"
+                            :label="$t('batteryadmin.mqtt.SocTopic')"
                             v-model="selectedBatteryData.mqtt.soc_topic"
                             type="text"
                             maxlength="256"
@@ -346,22 +354,22 @@
                         />
 
                         <InputElement
-                            :label="$t('batteryadmin.MqttJsonPath')"
+                            :label="$t('batteryadmin.mqtt.jsonPath')"
                             v-model="selectedBatteryData.mqtt.soc_json_path"
                             type="text"
                             maxlength="256"
-                            :tooltip="$t('batteryadmin.MqttJsonPathDescription')"
+                            :tooltip="$t('batteryadmin.mqtt.jsonPathDescription')"
                             wide
                         />
                     </CardElement>
 
                     <CardElement
-                        :text="$t('batteryadmin.MqttVoltageConfiguration')"
+                        :text="$t('batteryadmin.mqtt.voltageConfiguration')"
                         textVariant="text-bg-primary"
                         addSpace
                     >
                         <InputElement
-                            :label="$t('batteryadmin.MqttVoltageTopic')"
+                            :label="$t('batteryadmin.mqtt.voltageTopic')"
                             v-model="selectedBatteryData.mqtt.voltage_topic"
                             type="text"
                             maxlength="256"
@@ -369,17 +377,17 @@
                         />
 
                         <InputElement
-                            :label="$t('batteryadmin.MqttJsonPath')"
+                            :label="$t('batteryadmin.mqtt.jsonPath')"
                             v-model="selectedBatteryData.mqtt.voltage_json_path"
                             type="text"
                             maxlength="256"
-                            :tooltip="$t('batteryadmin.MqttJsonPathDescription')"
+                            :tooltip="$t('batteryadmin.mqtt.jsonPathDescription')"
                             wide
                         />
 
                         <div class="row mb-3">
                             <label for="mqtt_voltage_unit" class="col-sm-4 col-form-label">
-                                {{ $t('batteryadmin.MqttVoltageUnit') }}
+                                {{ $t('batteryadmin.mqtt.voltageUnit') }}
                             </label>
                             <div class="col-sm-8">
                                 <select
@@ -396,12 +404,12 @@
                     </CardElement>
 
                     <CardElement
-                        :text="$t('batteryadmin.MqttCurrentConfiguration')"
+                        :text="$t('batteryadmin.mqtt.currentConfiguration')"
                         textVariant="text-bg-primary"
                         addSpace
                     >
                         <InputElement
-                            :label="$t('batteryadmin.MqttCurrentTopic')"
+                            :label="$t('batteryadmin.mqtt.currentTopic')"
                             v-model="selectedBatteryData.mqtt.current_topic"
                             type="text"
                             maxlength="256"
@@ -409,17 +417,17 @@
                         />
 
                         <InputElement
-                            :label="$t('batteryadmin.MqttJsonPath')"
+                            :label="$t('batteryadmin.mqtt.jsonPath')"
                             v-model="selectedBatteryData.mqtt.current_json_path"
                             type="text"
                             maxlength="256"
-                            :tooltip="$t('batteryadmin.MqttJsonPathDescription')"
+                            :tooltip="$t('batteryadmin.mqtt.jsonPathDescription')"
                             wide
                         />
 
                         <div class="row mb-3">
                             <label for="mqtt_current_unit" class="col-sm-4 col-form-label">
-                                {{ $t('batteryadmin.MqttAmperageUnit') }}
+                                {{ $t('batteryadmin.mqtt.amperageUnit') }}
                             </label>
                             <div class="col-sm-8">
                                 <select
@@ -600,7 +608,7 @@
                         "
                     >
                         <InputElement
-                            :label="$t('batteryadmin.PollingInterval')"
+                            :label="$t('batteryadmin.zendure.pollingInterval')"
                             v-model="selectedBatteryData.zendure.polling_interval"
                             type="number"
                             min="10"
@@ -654,7 +662,7 @@
                             "
                         >
                             <InputElement
-                                :label="$t('batteryadmin.ZendureMaxOutput')"
+                                :label="$t('batteryadmin.zendure.maxOutput')"
                                 v-model="selectedBatteryData.zendure.max_output"
                                 type="number"
                                 min="100"
@@ -663,7 +671,7 @@
                                 :postfix="$t('batteryadmin.Watt')"
                             />
                             <InputElement
-                                :label="$t('batteryadmin.ZendureMinSoc')"
+                                :label="$t('batteryadmin.zendure.minSoc')"
                                 v-model="selectedBatteryData.zendure.soc_min"
                                 type="number"
                                 min="0"
@@ -691,7 +699,7 @@
                                 </div>
                             </div>
                             <InputElement
-                                :label="$t('batteryadmin.ZendureMaxSoc')"
+                                :label="$t('batteryadmin.zendure.maxSoc')"
                                 v-model="selectedBatteryData.zendure.soc_max"
                                 type="number"
                                 min="40"
@@ -701,7 +709,7 @@
                             />
                             <div class="row mb-3">
                                 <label for="zendure_bypass_mode" class="col-sm-2 col-form-label">
-                                    {{ $t('batteryadmin.ZendureBypassMode') }}
+                                    {{ $t('batteryadmin.zendure.bypassMode') }}
                                 </label>
                                 <div class="col-sm-10">
                                     <select
@@ -710,16 +718,16 @@
                                         v-model="selectedBatteryData.zendure.bypass_mode"
                                     >
                                         <option v-for="u in zendureBypassModeList" :key="u.key" :value="u.key">
-                                            {{ $t(`batteryadmin.ZendureBypassMode` + u.value) }}
+                                            {{ $t(`batteryadmin.zendure.bypassModes.` + u.value) }}
                                         </option>
                                     </select>
                                 </div>
                             </div>
                             <InputElement
-                                :label="$t('batteryadmin.ZendureAutoShutdown')"
+                                :label="$t('batteryadmin.zendure.autoShutdown')"
                                 v-model="selectedBatteryData.zendure.auto_shutdown"
                                 type="checkbox"
-                                :tooltip="$t('batteryadmin.ZendureAutoShutdownDescription')"
+                                :tooltip="$t('batteryadmin.zendure.autoShutdownDescription')"
                             />
                             <InputElement
                                 :label="$t('batteryadmin.zendure.buzzerEnable')"
@@ -754,7 +762,6 @@
                             <CardElement
                                 :text="$t('batteryadmin.zendure.batteryProtection')"
                                 textVariant="text-bg-primary"
-                                addSpace
                             >
                                 <InputElement
                                     :label="$t('batteryadmin.zendure.batteryProtectionEnabled')"
@@ -807,7 +814,7 @@
                             </CardElement>
                         </template>
                         <CardElement
-                            :text="$t('batteryadmin.ZendureOutputControl')"
+                            :text="$t('batteryadmin.zendure.outputMode')"
                             textVariant="text-bg-primary"
                             addSpace
                         >
@@ -828,7 +835,7 @@
                                         <option :key="0" :value="0">
                                             {{
                                                 $t(
-                                                    'batteryadmin.ZendureOutputMode' +
+                                                    'batteryadmin.zendure.outputModes.' +
                                                         zendureOutputControlList[0]?.value
                                                 )
                                             }}
@@ -843,7 +850,7 @@
                                         >
                                             {{
                                                 $t(
-                                                    'batteryadmin.ZendureOutputMode' +
+                                                    'batteryadmin.zendure.outputModes.' +
                                                         zendureOutputControlList[1]?.value
                                                 )
                                             }}
@@ -855,7 +862,7 @@
                                         >
                                             {{
                                                 $t(
-                                                    'batteryadmin.ZendureOutputMode' +
+                                                    'batteryadmin.zendure.outputModes.' +
                                                         zendureOutputControlList[2]?.value
                                                 )
                                             }}
@@ -866,7 +873,7 @@
 
                             <template v-if="selectedBatteryData.zendure.output_control == 1">
                                 <InputElement
-                                    :label="$t('batteryadmin.ZendureOutputLimit')"
+                                    :label="$t('batteryadmin.zendure.outputLimit')"
                                     v-model="selectedBatteryData.zendure.output_limit"
                                     type="number"
                                     min="0"
@@ -878,7 +885,7 @@
 
                             <template v-if="selectedBatteryData.zendure.output_control == 2">
                                 <InputElement
-                                    :label="$t('batteryadmin.ZendureSunriseOffset')"
+                                    :label="$t('batteryadmin.zendure.sunriseOffset')"
                                     v-model="selectedBatteryData.zendure.sunrise_offset"
                                     type="number"
                                     min="-360"
@@ -887,7 +894,7 @@
                                     :postfix="$t('batteryadmin.Minutes')"
                                 />
                                 <InputElement
-                                    :label="$t('batteryadmin.ZendureOutputLimitDay')"
+                                    :label="$t('batteryadmin.zendure.outputLimitDay')"
                                     v-model="selectedBatteryData.zendure.output_limit_day"
                                     type="number"
                                     min="0"
@@ -896,7 +903,7 @@
                                     :postfix="$t('batteryadmin.Watt')"
                                 />
                                 <InputElement
-                                    :label="$t('batteryadmin.ZendureSunsetOffset')"
+                                    :label="$t('batteryadmin.zendure.sunsetOffset')"
                                     v-model="selectedBatteryData.zendure.sunset_offset"
                                     type="number"
                                     min="-360"
@@ -905,7 +912,7 @@
                                     :postfix="$t('batteryadmin.Minutes')"
                                 />
                                 <InputElement
-                                    :label="$t('batteryadmin.ZendureOutputLimitNight')"
+                                    :label="$t('batteryadmin.zendure.outputLimitNight')"
                                     v-model="selectedBatteryData.zendure.output_limit_night"
                                     type="number"
                                     min="0"
@@ -921,7 +928,7 @@
         </div>
         <template #footer>
             <button type="button" class="btn btn-primary" @click="onEditSubmit">
-                {{ $t('batteryadmin.save') }}
+                {{ $t('batteryadmin.buttons.save') }}
             </button>
         </template>
     </ModalDialog>
@@ -929,18 +936,18 @@
     <ModalDialog
         modalId="batteryDelete"
         small
-        :title="$t('batteryadmin.deleteInverter')"
-        :closeText="$t('batteryadmin.cancel')"
+        :title="$t('batteryadmin.deleteBattery')"
+        :closeText="$t('batteryadmin.buttons.cancel')"
     >
         {{
-            $t('batteryadmin.deleteMsg', {
+            $t('batteryadmin.batteryDeleteMsg', {
                 name: selectedBatteryData.name,
-                serial: '',
+                uid: selectedBatteryData.uid,
             })
         }}
         <template #footer>
             <button type="button" class="btn btn-danger" @click="onDelete">
-                {{ $t('batteryadmin.delete') }}
+                {{ $t('batteryadmin.buttons.delete') }}
             </button>
         </template>
     </ModalDialog>
@@ -991,18 +998,18 @@ export default defineComponent({
             alert: {} as AlertResponse,
             sortable: {} as Sortable,
             providerTypeList: [
-                { key: 0, value: 'PylontechCan' },
-                { key: 1, value: 'JkBmsSerial' },
-                { key: 2, value: 'Mqtt' },
-                { key: 3, value: 'Victron' },
-                { key: 4, value: 'PytesCan' },
+                { key: 0, value: 'pylontechCan' },
+                { key: 1, value: 'jkBmsSerial' },
+                { key: 2, value: 'mqtt' },
+                { key: 3, value: 'victron' },
+                { key: 4, value: 'pytesCan' },
                 { key: 5, value: 'SBSCan' },
-                { key: 6, value: 'JbdBmsSerial' },
-                { key: 7, value: 'ZendureMqtt' },
+                { key: 6, value: 'jkbdBmsSerial' },
+                { key: 7, value: 'zendure' },
             ],
             serialBmsInterfaceTypeList: [
-                { key: 0, value: 'Uart' },
-                { key: 1, value: 'Transceiver' },
+                { key: 0, value: 'uart' },
+                { key: 1, value: 'transceiver' },
             ],
             voltageUnitTypeList: [
                 { key: 3, value: 'mV' },
@@ -1024,19 +1031,19 @@ export default defineComponent({
                 { key: 6, filter: 0x2, value: 'Hyper2000' },
             ],
             zendureBypassModeList: [
-                { key: 0, value: 'Automatic' },
-                { key: 1, value: 'AlwaysOff' },
-                { key: 2, value: 'AlwaysOn' },
+                { key: 0, value: 'automatic' },
+                { key: 1, value: 'alwaysOff' },
+                { key: 2, value: 'alwaysOn' },
             ],
             zendureOutputControlList: [
-                { key: 0, value: 'External' },
-                { key: 1, value: 'Fixed' },
-                { key: 2, value: 'Schedule' },
+                { key: 0, value: 'external' },
+                { key: 1, value: 'fixed' },
+                { key: 2, value: 'schedule' },
             ],
             zendureControlModeList: [
-                { key: 0, value: 'Full' },
-                { key: 1, value: 'Once' },
-                { key: 2, value: 'ReadOnly' },
+                { key: 0, value: 'full' },
+                { key: 1, value: 'once' },
+                { key: 2, value: 'readOnly' },
             ],
             zendureConnectionTypeList: [
                 { key: 0, value: 'local' },
@@ -1099,7 +1106,7 @@ export default defineComponent({
                 });
         },
         onSubmit() {
-            this.newBatteryData.uid = Math.floor(Math.random() * 0x7fffffff) | 0x40000000;
+            this.newBatteryData.uid = Math.floor(Math.random() * 0x0fffffff) | 0x40000000;
             this.newBatteryData.enabled = false;
             this.callBatteryApiEndpoint('add', JSON.stringify(this.newBatteryData));
             this.newBatteryData = { uid: 0 } as BatteryConfig;

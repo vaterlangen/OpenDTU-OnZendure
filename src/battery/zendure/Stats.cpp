@@ -39,10 +39,10 @@ void Stats::getLiveViewData(JsonVariant& root) const
 
     // values go into the "Settings" card of the web application
     section = "settings";
-    if (config.Zendure.ConnectionType != BatteryZendureConfig::ConnectionType_t::ZendureMqtt) {
-        addLiveViewTextInSection(root, section, "controlMode", std::string(controlModeToString(config.Zendure.ControlMode)));
-        addLiveViewBooleanInSection(root, section, "zendure.batteryProtection", config.Zendure.BatteryProtectionEnable);
-        addLiveViewInSection(root, section, "zendure.batteryProtectionHysteresis", config.Zendure.BatteryProtectionHysteresis, "%", 1);
+    if (config.Zendure->ConnectionType != BatteryZendureConfig::ConnectionType_t::ZendureMqtt) {
+        addLiveViewTextInSection(root, section, "controlMode", std::string(controlModeToString(config.Zendure->ControlMode)));
+        addLiveViewBooleanInSection(root, section, "zendure.batteryProtection", config.Zendure->BatteryProtectionEnable);
+        addLiveViewInSection(root, section, "zendure.batteryProtectionHysteresis", config.Zendure->BatteryProtectionHysteresis, "%", 1);
     }
     addLiveViewInSection(root, section, "maxInversePower", _inverse_max, "W", 0);
     addLiveViewInSection(root, section, "outputLimit", _output_limit, "W", 0);
@@ -140,9 +140,9 @@ void Stats::mqttPublish() const
     publish("packMinSoc", _packSocMin, 1);
     publish("chargeThroughState", String(chargeThroughStateToString(_charge_through_state)));
 
-    if (config.Zendure.ConnectionType != BatteryZendureConfig::ConnectionType_t::ZendureMqtt) {
-        publish("settings/controlMode", String(controlModeToString(config.Zendure.ControlMode)));
-        publish("settings/batteryProtection", boolToString(config.Zendure.BatteryProtectionEnable));
+    if (config.Zendure->ConnectionType != BatteryZendureConfig::ConnectionType_t::ZendureMqtt) {
+        publish("settings/controlMode", String(controlModeToString(config.Zendure->ControlMode)));
+        publish("settings/batteryProtection", boolToString(config.Zendure->BatteryProtectionEnable));
     }
 
     publish("settings/outputLimitPower", _output_limit);

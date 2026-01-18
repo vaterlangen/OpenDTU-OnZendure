@@ -135,7 +135,6 @@ namespace Batteries::Zendure {
 
 #define ZENDURE_LOG_OFFSET_MAX_USED_PARAMS          ZENDURE_LOG_OFFSET_MIN_SOC
 
-
 #define ZENDURE_REPORT_PROPERTIES                   "properties"
 #define ZENDURE_REPORT_PACK_NUM                     "packNum"
 #define ZENDURE_REPORT_MIN_SOC                      "minSoc"
