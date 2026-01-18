@@ -210,7 +210,7 @@ public:
     }
 
     virtual bool isSleeping() const { return _sleeping; };
-    virtual bool isProducing() const { return _output_power != 0; };
+    virtual bool isProducing() const { return _output_power > 0; };
     virtual float getLimit() const {
         auto inv_max = _inverse_max.value_or(0);
         return static_cast<float>(std::min(_output_limit.value_or(inv_max), inv_max));

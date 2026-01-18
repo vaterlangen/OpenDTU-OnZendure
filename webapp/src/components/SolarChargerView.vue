@@ -24,7 +24,10 @@
                 >
                     <div class="d-flex align-items-center">
                         <div class="me-2" style="padding-right: 4px">
-                            <BIconSunFill style="font-size: 24px" />
+                            <BIconSunFill v-if="getTotalPower(item) > 200" style="font-size: 18px; color: yellow" />
+                            <BIconSunFill v-else-if="getTotalPower(item) > 50" style="font-size: 18px" />
+                            <BIconSun v-else-if="getTotalPower(item) > 0" style="font-size: 18px" />
+                            <BIconMoonStarsFill v-else style="font-size: 18px" />
                         </div>
                         <div class="me-2">
                             <span
@@ -180,7 +183,14 @@
 import { defineComponent } from 'vue';
 import type { DynamicPowerLimiter, SolarCharger, SolarChargerInstance } from '@/types/SolarChargerLiveDataStatus';
 import { handleResponse, authHeader, authUrl } from '@/utils/authentication';
-import { BIconSun, BIconBatteryCharging, BIconBatteryHalf, BIconXCircleFill, BIconSunFill } from 'bootstrap-icons-vue';
+import {
+    BIconSun,
+    BIconBatteryCharging,
+    BIconBatteryHalf,
+    BIconXCircleFill,
+    BIconSunFill,
+    BIconMoonStarsFill,
+} from 'bootstrap-icons-vue';
 import DataAgeDisplay from '@/components/DataAgeDisplay.vue';
 import WebSocketService from '@/utils/websocketService';
 import * as bootstrap from 'bootstrap';
@@ -188,6 +198,7 @@ import * as bootstrap from 'bootstrap';
 export default defineComponent({
     components: {
         BIconSun,
+        BIconMoonStarsFill,
         BIconBatteryCharging,
         BIconBatteryHalf,
         BIconXCircleFill,
