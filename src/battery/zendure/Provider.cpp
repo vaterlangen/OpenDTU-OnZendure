@@ -23,8 +23,8 @@ bool Provider::init()
 
     auto const& config = _stats->getConfig();
 
-    if (strlen(config.Zendure.DeviceId) != 8) {
-        DTU_LOGE("Invalid device id '%s'!", config.Zendure.DeviceId);
+    if (strlen(config.Zendure->DeviceId) != 8) {
+        DTU_LOGE("Invalid device id '%s'!", config.Zendure->DeviceId);
         return false;
     }
 
@@ -41,7 +41,7 @@ bool Provider::init()
             );
     DTU_LOGD("Subscribed to '%s' for persistent settings", _topicPersistentSettingsSubscribe.c_str());
 
-    _rateFullUpdateMs   = config.Zendure.PollingInterval * 1000;
+    _rateFullUpdateMs   = config.Zendure->PollingInterval * 1000;
     _nextFullUpdate     = millis() + _rateFullUpdateMs / 2;
     _rateTimesyncMs     = ZENDURE_SECONDS_TIMESYNC * 1000;
     _nextTimesync       = _nextFullUpdate;
@@ -72,10 +72,10 @@ void Provider::loop()
     auto ms = millis();
     auto const& config = _stats->getConfig();
     const bool isDayPeriod = SunPosition.isSunsetAvailable() ? SunPosition.isDayPeriod() : true;
-    auto requestOutputLimit = _requested_limit.value_or(config.Zendure.OutputLimit);
+    auto requestOutputLimit = _requested_limit.value_or(config.Zendure->OutputLimit);
 
     // if auto shutdown is enabled and battery switches to idle at night, turn off status requests to prevent keeping battery awake
-    if (config.Zendure.AutoShutdown && !isDayPeriod && _stats->_state.value_or(State::Invalid) == State::Idle) {
+    if (config.Zendure->AutoShutdown && !isDayPeriod && _stats->_state.value_or(State::Invalid) == State::Idle) {
         DTU_LOGD("Zendure is idle at night and auto shutdown is enabled, skipping loop to prevent keeping battery awake");
         checkBatteryProtection();
         return;
@@ -119,11 +119,11 @@ void Provider::loop()
             std::time_t sunset = 0;
 
             if (SunPosition.sunriseTime(&timeinfo_sun)) {
-                sunrise = std::mktime(&timeinfo_sun) + config.Zendure.SunriseOffset * 60;
+                sunrise = std::mktime(&timeinfo_sun) + config.Zendure->SunriseOffset * 60;
             }
 
             if (SunPosition.sunsetTime(&timeinfo_sun)) {
-                sunset = std::mktime(&timeinfo_sun) + config.Zendure.SunsetOffset * 60;
+                sunset = std::mktime(&timeinfo_sun) + config.Zendure->SunsetOffset * 60;
             }
 
             if (sunrise && sunset) {
@@ -137,13 +137,13 @@ void Provider::loop()
                 }
 
                 // running in appointment mode - set outputlimit accordingly
-                if (config.Zendure.OutputControl == BatteryZendureConfig::OutputControl_t::ControlSchedule) {
-                    auto reqLimit = config.Zendure.MaxOutput;
+                if (config.Zendure->OutputControl == BatteryZendureConfig::OutputControl_t::ControlSchedule) {
+                    auto reqLimit = config.Zendure->MaxOutput;
                     if (current >= sunrise && current < sunset) {
-                        reqLimit = std::min(reqLimit, config.Zendure.OutputLimitDay);
+                        reqLimit = std::min(reqLimit, config.Zendure->OutputLimitDay);
                         _requested_limit = reqLimit;
                     } else if (current >= sunset || current < sunrise) {
-                        reqLimit = std::min(reqLimit, config.Zendure.OutputLimitNight);
+                        reqLimit = std::min(reqLimit, config.Zendure->OutputLimitNight);
                         _requested_limit = reqLimit;
                     }
 
@@ -153,27 +153,23 @@ void Provider::loop()
         }
     }
 
-    if (ms >= _nextOutputCalc) {
-        _nextOutputCalc = ms + _rateOutputCalcMs;
 
-	    checkBatteryProtection();
+    checkBatteryProtection();
 
-        // ensure charge through settings
-        switch (_stats->_charge_through_state.value_or(ChargeThroughState::Disabled)) {
-            case ChargeThroughState::Hard:
-                requestOutputLimit = 0;
-                [[fallthrough]]; // Fallthrough to also apply SoC limits and bypass mode
-            case ChargeThroughState::Soft:
-            case ChargeThroughState::Keep:
-                setTargetSoCs(config.Zendure.MinSoC, 100);
-                setBypassMode(BatteryZendureConfig::BypassMode_t::AlwaysOff);
-                break;
-            default:
-                setTargetSoCs(config.Zendure.MinSoC, config.Zendure.MaxSoC);
-                setBypassMode(config.Zendure.BypassMode);
-                break;
-        }
-
+    // ensure charge through settings
+    switch (_stats->_charge_through_state.value_or(ChargeThroughState::Disabled)) {
+        case ChargeThroughState::Hard:
+            requestOutputLimit = 0;
+            [[fallthrough]]; // Fallthrough to also apply SoC limits and bypass mode
+        case ChargeThroughState::Soft:
+        case ChargeThroughState::Keep:
+            setTargetSoCs(config.Zendure->MinSoC, 100);
+            setBypassMode(BatteryZendureConfig::BypassMode_t::AlwaysOff);
+            break;
+        default:
+            setTargetSoCs(config.Zendure->MinSoC, config.Zendure->MaxSoC);
+            setBypassMode(config.Zendure->BypassMode);
+            break;
     }
 }
 
@@ -219,13 +215,13 @@ void Provider::calculateTimeDiff()
 void Provider::checkChargeThrough(uint32_t predictHours /* = 0 */)
 {
     auto const& config = _stats->getConfig();
-    if (!config.Zendure.ChargeThroughEnable) {
+    if (!config.Zendure->ChargeThroughEnable) {
         setChargeThroughState(ChargeThroughState::Disabled);
         return;
     }
 
     // hard charge through will start after configured interval (given in hours)
-    auto hardChargeThrough = config.Zendure.ChargeThroughInterval;
+    auto hardChargeThrough = config.Zendure->ChargeThroughInterval;
 
     // soft charge through will be triggered one day (aka. 24 hours) before hard charge through
     auto softChargeThrough = hardChargeThrough - 24;
@@ -274,7 +270,7 @@ uint16_t Provider::calcOutputLimit(uint16_t limit) const
 void Provider::setControlState(ControlState mode, const bool publish /* = true */)
 {
     if (isControlState(mode)) { return; }
-    if (_stats->getConfig().Zendure.OutputControl == BatteryZendureConfig::OutputControl_t::ControlNone) {
+    if (_stats->getConfig().Zendure->OutputControl == BatteryZendureConfig::OutputControl_t::ControlNone) {
         return;
     }
 
@@ -314,12 +310,12 @@ uint16_t Provider::setOutputLimit(uint16_t limit, bool forced /* = false */) con
     }
 
     // if control is disabled AND limit is not forced, do not set the limit - just return the current limit
-    if (!forced && config.Zendure.OutputControl == BatteryZendureConfig::OutputControl_t::ControlNone) {
+    if (!forced && config.Zendure->OutputControl == BatteryZendureConfig::OutputControl_t::ControlNone) {
         return currentLimit;
     }
 
     // keep limit below MaxOutput
-    limit = min(config.Zendure.MaxOutput, limit);
+    limit = min(config.Zendure->MaxOutput, limit);
 
     // scale to Zendure steps
     limit = calcOutputLimit(limit);
@@ -669,7 +665,7 @@ void Provider::setSoC(const float soc, const uint32_t timestamp /* = 0 */, const
         publishPersistentSettings(ZENDURE_PERSISTENT_SETTINGS_LAST_FULL, String(now));
 
         if (chargeThroughState == ChargeThroughState::Soft || chargeThroughState == ChargeThroughState::Hard) {
-            _stats->_keep_until_timestamp = now + config.Zendure.ChargeThroughKeepMinutes * 60;
+            _stats->_keep_until_timestamp = now + config.Zendure->ChargeThroughKeepMinutes * 60;
             publishPersistentSettings(ZENDURE_PERSISTENT_SETTINGS_KEEP_EPOCH, String(_stats->_keep_until_timestamp.value_or(0)));
             setChargeThroughState(ChargeThroughState::Keep);
         }
@@ -706,7 +702,7 @@ void Provider::onMqttMessagePersistentSettings(espMqttClientTypes::MessageProper
         auto mode = Stats::chargeThroughStateFromString(string);
         if (mode.has_value()) {
             // if we recieve disabled state but configuration is set to enabled, overwrite with IDLE state
-            if (_stats->getConfig().Zendure.ChargeThroughEnable && mode == ChargeThroughState::Disabled) {
+            if (_stats->getConfig().Zendure->ChargeThroughEnable && mode == ChargeThroughState::Disabled) {
                 mode = ChargeThroughState::Idle;
             }
 
@@ -746,7 +742,7 @@ bool Provider::checkBatteryProtection()
 {
     auto const& config = _stats->getConfig();
 
-    if (!config.Zendure.BatteryProtectionEnable) {
+    if (!config.Zendure->BatteryProtectionEnable) {
         DTU_LOGD("BatteryProtection is DISABLED!");
         setControlState(ControlState::NormalOperation);
         return true;
@@ -755,18 +751,18 @@ bool Provider::checkBatteryProtection()
     if (!_stats->_packSocMin.has_value()) { return false; }
 
     DTU_LOGD("BatteryProtection: Useing MinSoC of %" PRIu8 " %% and hysteresis of %" PRIu8 " %%. Current state is '%s' with calculated pack minimum SoC of %.2f %%",
-        config.Zendure.MinSoC,
-        config.Zendure.BatteryProtectionHysteresis,
+        config.Zendure->MinSoC,
+        config.Zendure->BatteryProtectionHysteresis,
         Stats::controlStateToString(_stats->_controlState),
         _stats->_packSocMin.value()
     );
 
     // prevent discharge if single pack SoC is below configured MinSoC
-    if (_stats->_packSocMin.value() <= static_cast<float>(config.Zendure.MinSoC)) {
+    if (_stats->_packSocMin.value() <= static_cast<float>(config.Zendure->MinSoC)) {
         if (!isControlState(ControlState::BatteryProtection)) {
             DTU_LOGW("BatteryProtection: Calculated pack minimum SoC of %.2f %% is below configured MinSoC of %" PRIu8 " %% - stop discharge!",
                 _stats->_packSocMin.value(),
-                config.Zendure.MinSoC);
+                config.Zendure->MinSoC);
         }
         setControlState(ControlState::BatteryProtection);
         return true;
@@ -775,7 +771,7 @@ bool Provider::checkBatteryProtection()
     if (!isControlState(ControlState::BatteryProtection)) { return true; }
 
     // if we are in battery protection mode, but pack min SoC is above configured MinSoC + Hysteresis, resume normal operation
-    auto reenable_soc = static_cast<float>(config.Zendure.MinSoC) + config.Zendure.BatteryProtectionHysteresis;
+    auto reenable_soc = static_cast<float>(config.Zendure->MinSoC) + config.Zendure->BatteryProtectionHysteresis;
     if (_stats->_packSocMin.value() > reenable_soc) {
         DTU_LOGI("BatteryProtection: Calculated pack minimum SoC of %.2f %% is above configured threashold of %.0f %% - resume normal operation!",
             _stats->_packSocMin.value(),

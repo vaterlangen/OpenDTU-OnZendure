@@ -47,16 +47,7 @@ void WebApiBatteryClass::onBatteryList(AsyncWebServerRequest* request)
         JsonObject obj = data.add<JsonObject>();
         obj["id"] = i;
 
-        ConfigurationClass::serializeBatteryConfig(battery, obj);
-
-        auto zendure = obj["zendure"].to<JsonObject>();
-        ConfigurationClass::serializeBatteryZendureConfig(battery.Zendure, zendure, true);
-
-        auto mqtt = obj["mqtt"].to<JsonObject>();
-        ConfigurationClass::serializeBatteryMqttConfig(battery.Mqtt, mqtt);
-
-        auto serial = obj["serial"].to<JsonObject>();
-        ConfigurationClass::serializeBatterySerialConfig(battery.Serial, serial);
+        ConfigurationClass::serializeBatteryConfig(battery, obj, true);
     }
 
     WebApi.sendJsonResponse(request, response, __FUNCTION__, __LINE__);
@@ -179,9 +170,6 @@ void WebApiBatteryClass::onBatteryEdit(AsyncWebServerRequest* request)
         uid = battery.Uid;
 
         ConfigurationClass::deserializeBatteryConfig(root.as<JsonObject>(), battery);
-        ConfigurationClass::deserializeBatteryZendureConfig(root["zendure"].as<JsonObject>(), battery.Zendure);
-        ConfigurationClass::deserializeBatteryMqttConfig(root["mqtt"].as<JsonObject>(), battery.Mqtt);
-        ConfigurationClass::deserializeBatterySerialConfig(root["serial"].as<JsonObject>(), battery.Serial);
 
         // force UID to remain unchanged
         battery.Uid = uid;
@@ -294,16 +282,7 @@ void WebApiBatteryClass::onStatus(AsyncWebServerRequest* request)
     auto root = response->getRoot().as<JsonObject>();
     auto const& config = Configuration.get();
 
-    ConfigurationClass::serializeBatteryConfig(*(config.Battery), root);
-
-    auto zendure = root["zendure"].to<JsonObject>();
-    ConfigurationClass::serializeBatteryZendureConfig(config.Battery->Zendure, zendure, false);
-
-    auto mqtt = root["mqtt"].to<JsonObject>();
-    ConfigurationClass::serializeBatteryMqttConfig(config.Battery->Mqtt, mqtt);
-
-    auto serial = root["serial"].to<JsonObject>();
-    ConfigurationClass::serializeBatterySerialConfig(config.Battery->Serial, serial);
+    ConfigurationClass::serializeBatteryConfig(*(config.Battery), root, false);
 
     WebApi.sendJsonResponse(request, response, __FUNCTION__, __LINE__);
 }

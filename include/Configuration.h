@@ -260,9 +260,9 @@ struct BATTERY_CONFIG_T {
     char Name[BAT_MAX_NAME_STRLEN + 1];
     uint8_t Order;
     uint8_t Provider;
-    BatteryMqttConfig Mqtt;
-    BatteryZendureConfig Zendure;
-    BatterySerialConfig Serial;
+    BatteryMqttConfig* Mqtt;
+    BatteryZendureConfig* Zendure;
+    BatterySerialConfig* Serial;
     bool EnableDischargeCurrentLimit;
     float DischargeCurrentLimit;
     float DischargeCurrentLimitBelowSoc;
@@ -530,7 +530,7 @@ public:
     static void serializePowerMeterHttpJsonConfig(PowerMeterHttpJsonConfig const& source, JsonObject& target, bool includeCredentials);
     static void serializePowerMeterHttpSmlConfig(PowerMeterHttpSmlConfig const& source, JsonObject& target, bool includeCredentials);
     static void serializePowerMeterUdpVictronConfig(PowerMeterUdpVictronConfig const& source, JsonObject& target);
-    static void serializeBatteryConfig(BatteryConfig const& source, JsonObject& target);
+    static void serializeBatteryConfig(BatteryConfig const& source, JsonObject& target, bool includeCredentials);
     static void serializeBatteryZendureConfig(BatteryZendureConfig const& source, JsonObject& target, bool includeCredentials);
     static void serializeBatteryMqttConfig(BatteryMqttConfig const& source, JsonObject& target);
     static void serializeBatterySerialConfig(BatterySerialConfig const& source, JsonObject& target);

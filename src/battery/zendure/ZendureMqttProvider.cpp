@@ -19,29 +19,29 @@ bool ZendureMqttProvider::init()
 {
     auto const& config = _stats->getConfig();
 
-    if (strlen(config.Zendure.AppKey) < 8 || strlen(config.Zendure.AppKey) > 16) {
+    if (strlen(config.Zendure->AppKey) < 8 || strlen(config.Zendure->AppKey) > 16) {
         DTU_LOGE("Invalid app key length (expected between 8 and 16 characters)!");
         return false;
     }
 
-    if (strlen(config.Zendure.Secret) != 32) {
+    if (strlen(config.Zendure->Secret) != 32) {
         DTU_LOGE("Invalid secret length (expected 32 characters)!");
         return false;
     }
 
-    if (strlen(config.Zendure.Server) < 4) {
-        DTU_LOGE("Invalid server '%s'!", config.Zendure.Server);
+    if (strlen(config.Zendure->Server) < 4) {
+        DTU_LOGE("Invalid server '%s'!", config.Zendure->Server);
         return false;
     }
 
-    if (config.Zendure.Port < 1) {
-        DTU_LOGE("Invalid port '%" PRIu16 "'!", config.Zendure.Port);
+    if (config.Zendure->Port < 1) {
+        DTU_LOGE("Invalid port '%" PRIu16 "'!", config.Zendure->Port);
         return false;
     }
 
-    auto size = strlen(config.Zendure.ClientId);
+    auto size = strlen(config.Zendure->ClientId);
     if (size < 2 || size > ZENDURE_MAX_CLIENTID_STRLEN) {
-        DTU_LOGE("Invalid client id '%s'!", config.Zendure.ClientId);
+        DTU_LOGE("Invalid client id '%s'!", config.Zendure->ClientId);
         return false;
     }
 
@@ -50,7 +50,7 @@ bool ZendureMqttProvider::init()
     DTU_LOGD("ZendureMqttProvider, UID: 0x%" PRIX32 ", Index: %" PRIu32, _stats->getBatteryUid(), _stats->getBatteryIndex());
 
     // store device ID as we will need them for checking when receiving messages
-    setTopics(config.Zendure.AppKey, config.Zendure.DeviceId);
+    setTopics(config.Zendure->AppKey, config.Zendure->DeviceId);
 
     // disable charge through cycle if disable by config
     setChargeThroughState(ChargeThroughState::Disabled);
@@ -81,7 +81,7 @@ void ZendureMqttProvider::deinit()
     _shutdown = true;
     _mqttReconnectTimer.detach();
 
-    NetworkSettings.deregisterEvent(ZENDURE_NETWORK_EVENT_NAME);
+    NetworkSettings.deregisterEvent(ZENDURE_NETWORK_EVENT_NAME + _stats->getBatteryUid());
 
     Provider::deinit();
 
@@ -260,11 +260,11 @@ bool ZendureMqttProvider::performConnect()
     if (_mqttClient == nullptr) { return false; }
 
     auto const& config = _stats->getConfig();
-    DTU_LOGI("Connecting to Zendure MQTT-Broker at %s:%d...", config.Zendure.Server, config.Zendure.Port);
+    DTU_LOGI("Connecting to Zendure MQTT-Broker at %s:%d...", config.Zendure->Server, config.Zendure->Port);
 
-    static_cast<espMqttClient*>(_mqttClient)->setServer(config.Zendure.Server, config.Zendure.Port);
-    static_cast<espMqttClient*>(_mqttClient)->setCredentials(config.Zendure.AppKey, config.Zendure.Secret);
-    static_cast<espMqttClient*>(_mqttClient)->setClientId(config.Zendure.ClientId);
+    static_cast<espMqttClient*>(_mqttClient)->setServer(config.Zendure->Server, config.Zendure->Port);
+    static_cast<espMqttClient*>(_mqttClient)->setCredentials(config.Zendure->AppKey, config.Zendure->Secret);
+    static_cast<espMqttClient*>(_mqttClient)->setClientId(config.Zendure->ClientId);
     static_cast<espMqttClient*>(_mqttClient)->setCleanSession(false);
     static_cast<espMqttClient*>(_mqttClient)->onConnect(std::bind(&ZendureMqttProvider::onMqttConnect, this, _1));
     static_cast<espMqttClient*>(_mqttClient)->onDisconnect(std::bind(&ZendureMqttProvider::onMqttDisconnect, this, _1));
@@ -275,7 +275,7 @@ bool ZendureMqttProvider::performConnect()
         return true;
     }
 
-    DTU_LOGE("Failed to connect to Zendure MQTT-Broker at %s:%d.", config.Zendure.Server, config.Zendure.Port);
+    DTU_LOGE("Failed to connect to Zendure MQTT-Broker at %s:%d.", config.Zendure->Server, config.Zendure->Port);
     return false;
 }
 
@@ -346,7 +346,7 @@ void ZendureMqttProvider::onMqttDisconnect(espMqttClientTypes::DisconnectReason 
     const char* reasonStr = (it != reasons.end()) ? it->second.data() : "Unknown";
 
     auto const& config = _stats->getConfig();
-    ESP_LOGW(TAG, "Disconnected from Zendure MQTT-Broker at %s:%d. Reason: %s", config.Zendure.Server, config.Zendure.Port, reasonStr);
+    ESP_LOGW(TAG, "Disconnected from Zendure MQTT-Broker at %s:%d. Reason: %s", config.Zendure->Server, config.Zendure->Port, reasonStr);
 
     if (_shutdown) { return; }
 

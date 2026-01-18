@@ -81,7 +81,7 @@ void WebApiWsBatteryLiveClass::sendDataTaskCb()
         return;
     }
 
-    if (!Battery.getStats()->updateAvailable(_lastUpdateCheck)) { return; }
+    if (!Battery.updateAvailable(_lastUpdateCheck)) { return; }
     _lastUpdateCheck = millis();
 
     try {
