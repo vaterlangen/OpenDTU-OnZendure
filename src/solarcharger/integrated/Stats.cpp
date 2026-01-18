@@ -50,12 +50,17 @@ void Stats::getLiveViewData(JsonVariant& root, const boolean fullUpdate, const u
     auto hasUpdate = _lastUpdate > 0 && age < millis() - lastPublish;
     if (!fullUpdate && !hasUpdate) { return; }
 
-    for (const auto& [hash, device] : _devices) {
+    std::vector<std::pair<uint32_t, std::shared_ptr<DeviceData>>> sortedDevices(_devices.begin(), _devices.end());
+    std::sort(sortedDevices.begin(), sortedDevices.end(),
+        [](const auto& a, const auto& b) { return a.second->getOrder() < b.second->getOrder(); });
+
+    for (const auto& [hash, device] : sortedDevices) {
         DTU_LOGV("getLiveViewData(): device=0x%X", hash);
 
         auto devage = millis() - device->getLastUpdate();
 
         const JsonObject instance = root["solarcharger"]["instances"][device->getSerial()].to<JsonObject>();
+        instance["order"] = device->getOrder();
         instance["data_age_ms"] = devage;
         instance["max_age_ms"] = 90 * 1000;
         instance["hide_serial"] = false;
@@ -97,12 +102,13 @@ void Stats::getLiveViewData(JsonVariant& root, const boolean fullUpdate, const u
     DTU_LOGV("LIVE EXIT");
 }
 
-DeviceData::DeviceData(const String& manufacture, const String& device, const String& serial, const size_t numMppts /* = 0 */, const std::optional<String>& name /* = std::nullopt */)
+DeviceData::DeviceData(const String& manufacture, const String& device, const String& serial, const size_t numMppts /* = 0 */, const std::optional<String>& name /* = std::nullopt */, const size_t order /* = 0 */)
     : _manufacture(manufacture)
     , _device(device)
     , _serial(serial)
     , _numMppts(numMppts)
     , _name(name)
+    , _order(order)
 {
     DTU_LOGV("DeviceData(): assert(%d <= 4)", numMppts);
 
@@ -120,7 +126,7 @@ DeviceData::~DeviceData() {
     _mppts.clear();
 }
 
-std::optional<std::pair<uint32_t, std::shared_ptr<DeviceData>>> Stats::addDevice(std::optional<String> const& manufacture, std::optional<String> const& device, std::optional<String> const& serial, const size_t numMppts, std::optional<String> const& name /*= std::nullopt */) {
+std::optional<std::pair<uint32_t, std::shared_ptr<DeviceData>>> Stats::addDevice(std::optional<String> const& manufacture, std::optional<String> const& device, std::optional<String> const& serial, const size_t numMppts, std::optional<String> const& name /*= std::nullopt */, const size_t order /* = 0 */) {
     if (numMppts < 1 || numMppts > 4 || !serial || !device || !manufacture) {
         return std::nullopt;
     }
@@ -131,7 +137,7 @@ std::optional<std::pair<uint32_t, std::shared_ptr<DeviceData>>> Stats::addDevice
     crc.add(reinterpret_cast<const uint8_t*>(hashvalue.c_str()), hashvalue.length());
     const uint32_t hash = crc.calc();
 
-    auto new_device = std::make_shared<DeviceData>(*manufacture, *device, *serial, numMppts, name);
+    auto new_device = std::make_shared<DeviceData>(*manufacture, *device, *serial, numMppts, name, order);
     DTU_LOGV("addDevice(): hash=0x%X, new_device=0x%p", hash, static_cast<void*>(&*new_device));
 
     // check if the device already exits

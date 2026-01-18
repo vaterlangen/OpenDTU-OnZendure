@@ -24,10 +24,10 @@ bool LocalMqttProvider::init()
 
     String deviceType = String();
 
-    DTU_LOGD("LocalMqttProvider, Type: %" PRIu32 ", UID: 0x%" PRIX32 ", Index: %" PRIu32, config.Zendure.DeviceType, _stats->getBatteryUid(), _stats->getBatteryIndex());
+    DTU_LOGD("LocalMqttProvider, Type: %" PRIu32 ", UID: 0x%" PRIX32 ", Index: %" PRIu32, config.Zendure->DeviceType, _stats->getBatteryUid(), _stats->getBatteryIndex());
     {
         String deviceName = String();
-        switch (config.Zendure.DeviceType) {
+        switch (config.Zendure->DeviceType) {
             case 0:
                 deviceType = ZENDURE_HUB1200;
                 deviceName = ZENDURE_HUB1200_NAME;
@@ -66,7 +66,7 @@ bool LocalMqttProvider::init()
     }
 
     // store device ID as we will need them for checking when receiving messages
-    setTopics(deviceType, config.Zendure.DeviceId);
+    setTopics(deviceType, config.Zendure->DeviceId);
 
     // subscribe for log messages
     MqttSettings.subscribe(_topicLog, 0/*QoS*/,
@@ -100,7 +100,7 @@ bool LocalMqttProvider::init()
     serializeJson(root, _payloadFullUpdate);
 
     // check if we are allowed to write stuff
-    if (config.Zendure.ControlMode == BatteryZendureConfig::ControlMode::ControlModeReadOnly) {
+    if (config.Zendure->ControlMode == BatteryZendureConfig::ControlMode::ControlModeReadOnly) {
         DTU_LOGI("Running in READ-ONLY mode");
 
         // forget about write topic and payload to prevent it will ever be written
@@ -148,9 +148,9 @@ void LocalMqttProvider::writeSettings() {
 
     auto const& config = _stats->getConfig();
 
-    setBuzzer(config.Zendure.BuzzerEnable);
-    setAutoshutdown(config.Zendure.AutoShutdown);
-    setBypassMode(config.Zendure.BypassMode);
+    setBuzzer(config.Zendure->BuzzerEnable);
+    setAutoshutdown(config.Zendure->AutoShutdown);
+    setBypassMode(config.Zendure->BypassMode);
     publishProperty(_topicWrite, ZENDURE_REPORT_PV_BRAND, "1");         // means Hoymiles
     publishProperty(_topicWrite, ZENDURE_REPORT_PV_AUTO_MODEL, "0");    // we did static setup
     publishProperty(_topicWrite, ZENDURE_REPORT_SMART_MODE, "0");       // disable smart mode
@@ -162,7 +162,7 @@ void LocalMqttProvider::writeSettings() {
     // );
 
     // if running in OnlyOnce mode, forget about write topic to prevent it will ever be written again
-    if (config.Zendure.ControlMode == BatteryZendureConfig::ControlMode::ControlModeOnce) {
+    if (config.Zendure->ControlMode == BatteryZendureConfig::ControlMode::ControlModeOnce) {
         _topicWrite.clear();
     }
 }
@@ -235,7 +235,7 @@ void LocalMqttProvider::onMqttMessageReport(espMqttClientTypes::MessagePropertie
     // validate input data
     // messageId has to be set to "123"
     // deviceId has to be set to the configured deviceId
-    auto devid = _stats->getConfig().Zendure.DeviceId;
+    auto devid = _stats->getConfig().Zendure->DeviceId;
     if (!json["deviceId"].as<String>().equals(devid)) {
         //DTU_LOGE("Invalid or missing 'deviceId=<%s>' in '%s'", devid, logValue.c_str());
         return;
@@ -263,7 +263,7 @@ void LocalMqttProvider::onMqttMessageLog(espMqttClientTypes::MessageProperties c
     }
     auto ms = millis();
 
-    auto devid = _stats->getConfig().Zendure.DeviceId;
+    auto devid = _stats->getConfig().Zendure->DeviceId;
     //DTU_LOGD("Logging Frame received on topic '%s'", topic);
 
     std::string const src = std::string(reinterpret_cast<const char*>(payload), len);

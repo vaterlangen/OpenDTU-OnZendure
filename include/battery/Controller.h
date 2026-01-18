@@ -26,6 +26,7 @@ public:
         std::lock_guard<std::mutex> lock(_mutex);
         return _batteries.size();
     }
+    bool updateAvailable(uint32_t since) const;
 
 private:
     void loop();

@@ -257,9 +257,9 @@ struct BATTERY_CONFIG_T {
     char Name[BAT_MAX_NAME_STRLEN + 1];
     uint8_t Order;
     uint8_t Provider;
-    BatteryMqttConfig Mqtt;
-    BatteryZendureConfig Zendure;
-    BatterySerialConfig Serial;
+    BatteryMqttConfig* Mqtt;
+    BatteryZendureConfig* Zendure;
+    BatterySerialConfig* Serial;
     bool EnableDischargeCurrentLimit;
     float DischargeCurrentLimit;
     float DischargeCurrentLimitBelowSoc;

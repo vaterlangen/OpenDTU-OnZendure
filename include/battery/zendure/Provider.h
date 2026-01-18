@@ -73,7 +73,7 @@ private:
     void calculateFullChargeAge();
     void rescheduleSunCalc() { _nextSunCalc = 0; }
     void publishPersistentSettings(const char* subtopic, const String& payload);
-    void setControlState(ControlState mode);
+    void setControlState(ControlState mode, const bool publish = true);
 
     uint32_t _rateFullUpdateMs = 0;
     uint64_t _nextFullUpdate = 0;

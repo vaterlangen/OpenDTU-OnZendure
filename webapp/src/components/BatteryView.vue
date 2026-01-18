@@ -27,40 +27,38 @@
                                 v-tooltip
                                 :title="
                                     $t('home.battery.charging', {
-                                        soc: $n(getValue(battery, 'SoC', 100), 'decimalNoDigits'),
+                                        soc: $n(getValue(battery, 'SoC'), 'decimalNoDigits'),
                                     })
                                 "
                             />
                             <BIconBatteryFull
-                                v-else-if="getValue(battery, 'SoC', 100) == 100"
+                                v-else-if="getValue(battery, 'SoC') == 100"
                                 style="font-size: 24px; color: green"
                                 v-tooltip
                                 :title="$t('home.battery.full')"
                             />
                             <BIconBatteryFull
-                                v-else-if="
-                                    getValue(battery, 'SoC', 100) >= getValue(battery, 'maxSoC', 100, 'settings')
-                                "
+                                v-else-if="getValue(battery, 'SoC') >= getValue(battery, 'maxSoC', 100, 'settings')"
                                 style="font-size: 24px"
                                 v-tooltip
                                 :title="
                                     $t('home.battery.high', {
-                                        soc: $n(getValue(battery, 'SoC', 100), 'decimalNoDigits'),
+                                        soc: $n(getValue(battery, 'SoC'), 'decimalNoDigits'),
                                     })
                                 "
                             />
                             <BIconBattery
-                                v-else-if="getValue(battery, 'SoC', 100) <= getValue(battery, 'minSoC', 0, 'settings')"
+                                v-else-if="getValue(battery, 'SoC') <= getValue(battery, 'minSoC', 0, 'settings')"
                                 style="font-size: 24px"
                                 v-tooltip
                                 :title="
                                     $t('home.battery.low', {
-                                        soc: $n(getValue(battery, 'SoC', 100), 'decimalNoDigits'),
+                                        soc: $n(getValue(battery, 'SoC'), 'decimalNoDigits'),
                                     })
                                 "
                             />
                             <BIconBattery
-                                v-else-if="getValue(battery, 'SoC', 100) == 0"
+                                v-else-if="getValue(battery, 'SoC') == 0"
                                 style="font-size: 24px; color: red"
                                 v-tooltip
                                 :title="$t('home.battery.empty')"
@@ -71,7 +69,7 @@
                                 v-tooltip
                                 :title="
                                     $t('home.battery.level', {
-                                        soc: $n(getValue(battery, 'SoC', 100), 'decimalNoDigits'),
+                                        soc: $n(getValue(battery, 'SoC'), 'decimalNoDigits'),
                                     })
                                 "
                             />
@@ -149,9 +147,20 @@
                                 <button
                                     type="button"
                                     class="btn btn-sm btn-info"
+                                    @click="onShowBatteryInfo(battery)"
+                                    v-tooltip
+                                    :title="$t('home.battery.showInfo')"
+                                >
+                                    <BIconCpu style="font-size: 24px" />
+                                </button>
+                            </div>
+                            <div class="btn-group me-2" role="group">
+                                <button
+                                    type="button"
+                                    class="btn btn-sm btn-info"
                                     @click="onShowBatterySettings(battery)"
                                     v-tooltip
-                                    :title="$t('home.showBatterSettings')"
+                                    :title="$t('home.battery.showSettings')"
                                 >
                                     <BIconInfoCircle style="font-size: 24px" />
                                 </button>
@@ -271,93 +280,94 @@
         </div>
     </div>
     <ModalDialog
+        modalId="batteryInfoView"
+        :title="$t('home.battery.info', { name: selectedBattery.name })"
+        :loading="batteryInfoLoading"
+    >
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th scope="col">{{ $t('battery.Property') }}</th>
+                        <th class="value" scope="col">
+                            {{ $t('battery.Value') }}
+                        </th>
+                        <th scope="col"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <th scope="row">{{ $t('battery.manufacturer') }}</th>
+                        <td class="value">{{ selectedBattery.manufacturer }}</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <th scope="row">{{ $t('battery.hwversion') }}</th>
+                        <td class="value">{{ selectedBattery.hwversion }}</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <th scope="row">{{ $t('battery.serial') }}</th>
+                        <td class="value">{{ selectedBattery.serial }}</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <th scope="row">{{ $t('battery.fwversion') }}</th>
+                        <td class="value">{{ selectedBattery.fwversion }}</td>
+                        <td></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </ModalDialog>
+    <ModalDialog
         modalId="batterySettingView"
-        :title="$t('home.batterySettings', { name: selectedBattery.name })"
+        :title="$t('home.battery.settings', { name: selectedBattery.name })"
         :loading="batterySettingLoading"
     >
-        <!-- <div class="row mb-3 align-items-center">-->
-        <CardElement :text="$t('battery.info')" textVariant="text-bg-primary">
-            <div class="table-responsive">
-                <table class="table table-striped table-hover">
-                    <thead>
-                        <tr>
-                            <th scope="col">{{ $t('battery.Property') }}</th>
-                            <th class="value" scope="col">
-                                {{ $t('battery.Value') }}
-                            </th>
-                            <th scope="col"></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <th scope="row">{{ $t('battery.manufacturer') }}</th>
-                            <td class="value">{{ selectedBattery.manufacturer }}</td>
-                            <td></td>
-                        </tr>
-                        <tr>
-                            <th scope="row">{{ $t('battery.hwversion') }}</th>
-                            <td class="value">{{ selectedBattery.hwversion }}</td>
-                            <td></td>
-                        </tr>
-                        <tr>
-                            <th scope="row">{{ $t('battery.serial') }}</th>
-                            <td class="value">{{ selectedBattery.serial }}</td>
-                            <td></td>
-                        </tr>
-                        <tr>
-                            <th scope="row">{{ $t('battery.fwversion') }}</th>
-                            <td class="value">{{ selectedBattery.fwversion }}</td>
-                            <td></td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </CardElement>
-        <CardElement :text="$t('battery.settings')" textVariant="text-bg-primary" addSpace>
-            <div class="table-responsive">
-                <table class="table table-striped table-hover">
-                    <thead>
-                        <tr>
-                            <th scope="col">{{ $t('battery.Property') }}</th>
-                            <th class="value" scope="col">
-                                {{ $t('battery.Value') }}
-                            </th>
-                            <th scope="col">{{ $t('battery.Unit') }}</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <template v-for="(values, section) in selectedBattery.values" v-bind:key="section">
-                            <template v-if="section.toString() == 'settings'">
-                                <tr v-for="(prop, key) in values" v-bind:key="key">
-                                    <th scope="row">{{ $t('battery.' + key) }}</th>
-                                    <td class="value">
-                                        <template v-if="isStringValue(prop) && prop.translate">
-                                            {{ $t('battery.' + prop.value) }}
-                                        </template>
-                                        <template v-else-if="isStringValue(prop)">
-                                            {{ prop.value }}
-                                        </template>
-                                        <template v-else>
-                                            {{
-                                                $n(prop.v, 'decimal', {
-                                                    minimumFractionDigits: prop.d,
-                                                    maximumFractionDigits: prop.d,
-                                                })
-                                            }}
-                                        </template>
-                                    </td>
-                                    <td>
-                                        <template v-if="!isStringValue(prop)">
-                                            {{ prop.u }}
-                                        </template>
-                                    </td>
-                                </tr>
-                            </template>
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th scope="col">{{ $t('battery.Property') }}</th>
+                        <th class="value" scope="col">
+                            {{ $t('battery.Value') }}
+                        </th>
+                        <th scope="col">{{ $t('battery.Unit') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template v-for="(values, section) in selectedBattery.values" v-bind:key="section">
+                        <template v-if="section.toString() == 'settings'">
+                            <tr v-for="(prop, key) in values" v-bind:key="key">
+                                <th scope="row">{{ $t('battery.' + key) }}</th>
+                                <td class="value">
+                                    <template v-if="isStringValue(prop) && prop.translate">
+                                        {{ $t('battery.' + prop.value) }}
+                                    </template>
+                                    <template v-else-if="isStringValue(prop)">
+                                        {{ prop.value }}
+                                    </template>
+                                    <template v-else>
+                                        {{
+                                            $n(prop.v, 'decimal', {
+                                                minimumFractionDigits: prop.d,
+                                                maximumFractionDigits: prop.d,
+                                            })
+                                        }}
+                                    </template>
+                                </td>
+                                <td>
+                                    <template v-if="!isStringValue(prop)">
+                                        {{ prop.u }}
+                                    </template>
+                                </td>
+                            </tr>
                         </template>
-                    </tbody>
-                </table>
-            </div>
-        </CardElement>
+                    </template>
+                </tbody>
+            </table>
+        </div>
     </ModalDialog>
 </template>
 
@@ -368,10 +378,10 @@ import { isStringValue } from '@/types/StringValue';
 import { handleResponse, authHeader, authUrl } from '@/utils/authentication';
 import DataAgeDisplay from '@/components/DataAgeDisplay.vue';
 import ModalDialog from '@/components/ModalDialog.vue';
-import CardElement from '@/components/CardElement.vue';
 import * as bootstrap from 'bootstrap';
 import {
     BIconInfoCircle,
+    BIconCpu,
     BIconBattery,
     BIconBatteryHalf,
     BIconBatteryFull,
@@ -380,10 +390,10 @@ import {
 
 export default defineComponent({
     components: {
-        CardElement,
         DataAgeDisplay,
         ModalDialog,
         BIconInfoCircle,
+        BIconCpu,
         BIconBattery,
         BIconBatteryHalf,
         BIconBatteryFull,
@@ -407,6 +417,9 @@ export default defineComponent({
 
             batterySettingLoading: false,
             batterySettingView: {} as bootstrap.Modal,
+
+            batteryInfoLoading: false,
+            batteryInfoView: {} as bootstrap.Modal,
         };
     },
     created() {
@@ -416,6 +429,7 @@ export default defineComponent({
     },
     mounted() {
         this.batterySettingView = new bootstrap.Modal('#batterySettingView');
+        this.batteryInfoView = new bootstrap.Modal('#batteryInfoView');
     },
     unmounted() {
         this.closeSocket();
@@ -511,6 +525,10 @@ export default defineComponent({
         onShowBatterySettings(battery: BatteryInstance) {
             this.selectedBattery = battery;
             this.batterySettingView.show();
+        },
+        onShowBatteryInfo(battery: BatteryInstance) {
+            this.selectedBattery = battery;
+            this.batteryInfoView.show();
         },
         getValue(battery: BatteryInstance, name: string, fallback: number = 0, section: string = 'status'): number {
             if (!battery || !name || !section || !battery.values) {

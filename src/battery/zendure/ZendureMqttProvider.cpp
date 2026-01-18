@@ -20,28 +20,28 @@ bool ZendureMqttProvider::init()
 {
     auto const& config = _stats->getConfig();
 
-    if (strlen(config.Zendure.AppKey) != 8) {
-        DTU_LOGE("Invalid app key '%s'!", config.Zendure.AppKey);
+    if (strlen(config.Zendure->AppKey) != 8) {
+        DTU_LOGE("Invalid app key '%s'!", config.Zendure->AppKey);
         return false;
     }
 
-    if (strlen(config.Zendure.Secret) != 32) {
-        DTU_LOGE("Invalid secret '%s'!", config.Zendure.Secret);
+    if (strlen(config.Zendure->Secret) != 32) {
+        DTU_LOGE("Invalid secret '%s'!", config.Zendure->Secret);
         return false;
     }
 
-    if (strlen(config.Zendure.Server) < 4) {
-        DTU_LOGE("Invalid server '%s'!", config.Zendure.Server);
+    if (strlen(config.Zendure->Server) < 4) {
+        DTU_LOGE("Invalid server '%s'!", config.Zendure->Server);
         return false;
     }
 
-    if (config.Zendure.Port < 1) {
-        DTU_LOGE("Invalid port '%" PRIu16 "'!", config.Zendure.Port);
+    if (config.Zendure->Port < 1) {
+        DTU_LOGE("Invalid port '%" PRIu16 "'!", config.Zendure->Port);
         return false;
     }
 
-    if (strlen(config.Zendure.ClientId) < 2) {
-        DTU_LOGE("Invalid client id '%s'!", config.Zendure.ClientId);
+    if (strlen(config.Zendure->ClientId) < 2) {
+        DTU_LOGE("Invalid client id '%s'!", config.Zendure->ClientId);
         return false;
     }
 
@@ -50,7 +50,7 @@ bool ZendureMqttProvider::init()
     DTU_LOGD("ZendureMqttProvider, UID: 0x%" PRIX32 ", Index: %" PRIu32, _stats->getBatteryUid(), _stats->getBatteryIndex());
 
     // store device ID as we will need them for checking when receiving messages
-    setTopics(config.Zendure.AppKey, config.Zendure.DeviceId);
+    setTopics(config.Zendure->AppKey, config.Zendure->DeviceId);
 
     // disable charge through cycle if disable by config
     setChargeThroughState(ChargeThroughState::Disabled);
@@ -235,9 +235,9 @@ void ZendureMqttProvider::performConnect()
     ESP_LOGI(TAG, "Connecting to Zendure MQTT...");
     const auto& config = _stats->getConfig();
 
-    static_cast<espMqttClient*>(_mqttClient)->setServer(config.Zendure.Server, config.Zendure.Port);
-    static_cast<espMqttClient*>(_mqttClient)->setCredentials(config.Zendure.AppKey, config.Zendure.Secret);
-    static_cast<espMqttClient*>(_mqttClient)->setClientId(config.Zendure.ClientId);
+    static_cast<espMqttClient*>(_mqttClient)->setServer(config.Zendure->Server, config.Zendure->Port);
+    static_cast<espMqttClient*>(_mqttClient)->setCredentials(config.Zendure->AppKey, config.Zendure->Secret);
+    static_cast<espMqttClient*>(_mqttClient)->setClientId(config.Zendure->ClientId);
     static_cast<espMqttClient*>(_mqttClient)->setCleanSession(false);
     static_cast<espMqttClient*>(_mqttClient)->onConnect(std::bind(&ZendureMqttProvider::onMqttConnect, this, _1));
     static_cast<espMqttClient*>(_mqttClient)->onDisconnect(std::bind(&ZendureMqttProvider::onMqttDisconnect, this, _1));
