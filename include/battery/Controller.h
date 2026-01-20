@@ -27,6 +27,9 @@ public:
         return _batteries.size();
     }
     bool updateAvailable(uint32_t since) const;
+    bool isSmartBufferBattery(const uint32_t provider_id) const {
+        return provider_id == 7;
+    }
 
 private:
     void loop();

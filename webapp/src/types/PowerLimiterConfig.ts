@@ -11,6 +11,14 @@ export interface PowerLimiterInverterInfo {
     type: string;
     channels: number;
     pdl_supported: boolean;
+    mppts: number;
+}
+
+export interface PowerLimiterBatteryInfo {
+    uid: number;
+    name: string;
+    order: number;
+    max_power: number;
 }
 
 // meta-data not directly part of the DPL settings,
@@ -20,6 +28,13 @@ export interface PowerLimiterMetaData {
     battery_enabled: boolean;
     charge_controller_enabled: boolean;
     inverters: PowerLimiterInverterInfo[];
+    batteries: PowerLimiterBatteryInfo[];
+}
+
+export interface PowerLimiterInverterMpptConfig {
+    enabled: boolean;
+    power_source: number;
+    battery_uid: number;
 }
 
 export interface PowerLimiterInverterConfig {
@@ -32,6 +47,7 @@ export interface PowerLimiterInverterConfig {
     lower_power_limit: number;
     upper_power_limit: number;
     has_priority: boolean;
+    mppts: PowerLimiterInverterMpptConfig[];
 }
 
 export interface PowerLimiterConfig {

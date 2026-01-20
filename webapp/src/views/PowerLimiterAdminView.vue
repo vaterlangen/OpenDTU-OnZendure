@@ -215,6 +215,55 @@
                             type="number"
                             wide
                         />
+                        <template v-if="inv.power_source == 2">
+                            <template v-for="(mppt, i) in inv.mppts" :key="i">
+                                <template v-if="i < getInverterInfo(inv.serial).mppts">
+                                    <InputElement
+                                        :label="$t('powerlimiteradmin.MpptUsed')"
+                                        v-model="mppt.enabled"
+                                        type="checkbox"
+                                        wide
+                                    />
+                                    <template v-if="mppt.enabled">
+                                        <div class="row mb-3">
+                                            <label class="col-sm-4 col-form-label">
+                                                {{ $t('powerlimiteradmin.MpptInputType', {number: i}) }}
+                                            </label>
+                                            <div class="col-sm-8">
+                                                <select class="form-select" v-model="mppt.power_source">
+                                                    <option
+                                                        v-for="provider in powerSourceList"
+                                                        :key="provider.key"
+                                                        :value="provider.key"
+                                                    >
+                                                        {{ $t(`powerlimiteradmin.PowerSource` + provider.value) }}
+                                                    </option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div
+                                            v-if="mppt.power_source != 1"
+                                            class="row mb-3"
+                                        >
+                                            <label class="col-sm-4 col-form-label">
+                                                {{ $t('powerlimiteradmin.MpptAssignedBattery', {number: i}) }}
+                                            </label>
+                                            <div class="col-sm-8">
+                                                <select class="form-select" v-model="mppt.battery_uid">
+                                                    <option
+                                                        v-for="battery in powerLimiterMetaData.batteries"
+                                                        :key="battery.uid"
+                                                        :value="battery.uid"
+                                                    >
+                                                        {{ battery.name }}
+                                                    </option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </template>
+                            </template>
+                        </template>
                     </CardElement>
                 </template>
 
@@ -452,6 +501,7 @@ import type {
     PowerLimiterInverterConfig,
     PowerLimiterMetaData,
     PowerLimiterInverterInfo,
+    PowerLimiterBatteryInfo,
 } from '@/types/PowerLimiterConfig';
 
 export default defineComponent({
@@ -544,6 +594,12 @@ export default defineComponent({
             return (
                 this.powerLimiterMetaData.inverters?.find((inv: PowerLimiterInverterInfo) => inv.serial === serial) ||
                 ({} as PowerLimiterInverterInfo)
+            );
+        },
+        getBatteryInfo(uid: number): PowerLimiterBatteryInfo {
+            return (
+                this.powerLimiterMetaData.batteries?.find((bat: PowerLimiterBatteryInfo) => bat.uid === uid) ||
+                ({} as PowerLimiterBatteryInfo)
             );
         },
         getConfigHints(): { severity: string; subject: string }[] {

@@ -3,6 +3,8 @@
 
 #include "Configuration.h"
 #include <Hoymiles.h>
+#include <battery/SmartBufferStats.h>
+#include <battery/Controller.h>
 #include <optional>
 #include <memory>
 

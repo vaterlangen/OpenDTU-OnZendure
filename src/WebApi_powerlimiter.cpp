@@ -70,6 +70,23 @@ void WebApiPowerLimiterClass::onMetaData(AsyncWebServerRequest* request)
         auto channels = inv->Statistics()->getChannelsByType(TYPE_DC);
         obj["channels"] = channels.size();
         obj["pdl_supported"] = inv->supportsPowerDistributionLogic();
+        obj["mppts"] = inv->getMppts().size();
+    }
+
+    JsonArray batteries = root["batteries"].to<JsonArray>();
+    for (uint8_t i = 0; i < BAT_MAX_COUNT; i++) {
+        auto bat = config.Batteries[i];
+        if (bat.Uid == 0) { continue; }
+
+        // currently only ZendureProvider is supported
+        if (!Battery.isSmartBufferBattery(bat.Provider)) { continue; }
+
+        JsonObject obj = batteries.add<JsonObject>();
+        obj["uid"] = bat.Uid;
+        obj["pos"] = i;
+        obj["order"] = bat.Order;
+        obj["name"] = String(bat.Name);
+        obj["max_power"] = -1;
     }
 
     WebApi.sendJsonResponse(request, response, __FUNCTION__, __LINE__);

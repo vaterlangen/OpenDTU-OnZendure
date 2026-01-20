@@ -3,6 +3,7 @@
 
 #include "PinMapping.h"
 #include <TaskSchedulerDeclarations.h>
+#include <inverters/InverterAbstract.h>
 #include <condition_variable>
 #include <cstdint>
 #include <ArduinoJson.h>
@@ -152,6 +153,13 @@ struct POWERMETER_UDP_VICTRON_CONFIG_T {
 };
 using PowerMeterUdpVictronConfig = struct POWERMETER_UDP_VICTRON_CONFIG_T;
 
+struct POWERLIMITER_INVERTER_MPPT_CONFIG_T {
+    bool Enabled;
+    enum InverterPowerSource_t { Battery = 0, Solar = 1, SmartBuffer = 2 };
+    InverterPowerSource_t PowerSource;
+    uint32_t BatteryUid;
+};
+
 struct POWERLIMITER_INVERTER_CONFIG_T {
     uint64_t Serial;
     bool IsGoverned;
@@ -165,6 +173,14 @@ struct POWERLIMITER_INVERTER_CONFIG_T {
     InverterPowerSource PowerSource;
 
     bool HasPriority;
+
+    struct PowerLimiterInverterMpptConfig {
+        bool Enabled;
+        //enum InverterPowerSource_t { Battery = 0, Solar = 1, SmartBuffer = 2 };
+        InverterPowerSource PowerSource;
+        uint32_t BatteryUid;
+    };
+    PowerLimiterInverterMpptConfig Mppts[MpptNum_t::MPPT_CNT];
 };
 using PowerLimiterInverterConfig = struct POWERLIMITER_INVERTER_CONFIG_T;
 

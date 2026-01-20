@@ -1,7 +1,20 @@
 #include "PowerLimiterSmartBufferInverter.h"
 
 PowerLimiterSmartBufferInverter::PowerLimiterSmartBufferInverter(PowerLimiterInverterConfig const& config)
-    : PowerLimiterOverscalingInverter(config) { }
+    : PowerLimiterOverscalingInverter(config)
+{
+    // populate MPPT input mapping
+    const auto num_mppt = std::min(_spInverter->getMppts().size(), sizeof(config.Mppts) / sizeof(config.Mppts[0]));
+    for (uint8_t i = 0; i < num_mppt; ++i) {
+        auto& mppt = config.Mppts[i];
+        if (!mppt.Enabled || mppt.BatteryUid == 0) { continue; }
+
+        const auto& bat = Configuration.getBatteryConfig(mppt.BatteryUid);
+        if (bat == nullptr || !Battery.isSmartBufferBattery(bat->Provider)) { continue; }
+
+        _mpptInputs[i] = mppt.BatteryUid;
+    }
+}
 
 uint16_t PowerLimiterSmartBufferInverter::getMaxReductionWatts(bool allowStandby) const
 {

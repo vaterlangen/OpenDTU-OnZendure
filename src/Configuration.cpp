@@ -284,6 +284,12 @@ void ConfigurationClass::serializePowerLimiterConfig(PowerLimiterConfig const& s
         t["lower_power_limit"] = s.LowerPowerLimit;
         t["upper_power_limit"] = s.UpperPowerLimit;
         t["has_priority"] = s.HasPriority;
+
+        for (size_t j = 0; j < MpptNum_t::MPPT_CNT; ++j) {
+            t["enabled"] = s.Mppts[j].Enabled;
+            t["power_source"] = s.Mppts[j].PowerSource;
+            t["battery_uid"] = s.Mppts[j].BatteryUid;
+        }
     }
 }
 
@@ -756,6 +762,16 @@ void ConfigurationClass::deserializePowerLimiterConfig(JsonObject const& source,
         inv.LowerPowerLimit = s["lower_power_limit"] | POWERLIMITER_LOWER_POWER_LIMIT;
         inv.UpperPowerLimit = s["upper_power_limit"] | POWERLIMITER_UPPER_POWER_LIMIT;
         inv.HasPriority = s["has_priority"] | POWERLIMITER_HAS_PRIORITY;
+
+        JsonArray mppts = s["mppts"].as<JsonArray>();
+        for (size_t j = 0; j < MpptNum_t::MPPT_CNT; ++j) {
+            auto& mppt = inv.Mppts[j];
+            JsonObject m = mppts[j];
+
+            mppt.Enabled = m["enabled"] | false;
+            mppt.PowerSource = m["power_source"] | PowerLimiterInverterConfig::InverterPowerSource::Battery;
+            mppt.BatteryUid = m["battery_uid"] | 0UL;
+        }
     }
 }
 
