@@ -126,8 +126,8 @@ void Stats::mqttPublish() const
         publish("battery/" + id + "/capacity", value->_capacity);
     }
 
-    publish("battery/solarPowerMppt1", getSolarPower(SmartBufferStats::MPPT::Number_1));
-    publish("battery/solarPowerMppt2", getSolarPower(SmartBufferStats::MPPT::Number_2));
+    publish("battery/solarPowerMppt1", getSolarPower(SolarChargers::Integrated::MPPT::Number_1));
+    publish("battery/solarPowerMppt2", getSolarPower(SolarChargers::Integrated::MPPT::Number_2));
     publish("battery/outputPower", _output_power);
     publish("battery/inputPower", getInputPower());
     publish("battery/bypass", boolToString(_bypass_state));
