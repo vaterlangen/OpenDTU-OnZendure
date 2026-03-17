@@ -205,9 +205,11 @@ public:
         return getSolarPowerOverall();
     }
 
-    virtual std::optional<uint32_t> getCapacityWh() const {
-        return _capacity;
-    }
+    virtual std::optional<uint32_t> getTotalCapacityWh() const { return _capacity;}
+    virtual std::optional<uint32_t> getAvailableCapacityWh() const { return _capacity_avail;}
+    virtual std::optional<uint32_t> getUseableCapacityWh() const { return getUseableCapacity(); }
+    virtual std::optional<float> getMinimumSoC() const { return _soc_min; }
+    virtual std::optional<float> getMaximumSoC() const { return _soc_max; }
 
     virtual bool isSleeping() const { return _sleeping; };
     virtual bool isProducing() const { return _output_power > 0; };

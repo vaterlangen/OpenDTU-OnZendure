@@ -57,6 +57,33 @@ public:
     // True if all enabled inverters are reachable
     bool getIsAllEnabledReachable();
 
+
+
+    // Overall state of charge
+    float getTotalBatteryStateOfCharge();
+    uint32_t getTotalBatteryStateOfChargeDigits();
+
+    // Overall usaebale state of charge
+    float getTotalBatteryUseableStateOfCharge();
+    uint32_t getTotalBatteryUseableStateOfChargeDigits();
+
+    // Overall installed battery capacity
+    uint32_t getTotalBatteryInstalledCapacity();
+
+    // Overall available battery capacity
+    uint32_t getTotalBatteryAvailableCapacity();
+
+    // Overall useable battery capacity
+    uint32_t getTotalBatteryUsableCapacity();
+
+    // Overall stored energy
+    uint32_t getTotalBatteryStoredEnergy();
+
+    // Overall battery power
+    float getTotalBatteryPower();
+    uint32_t getTotalBatteryPowerDigits();
+
+
 private:
     void loop();
 
@@ -80,6 +107,18 @@ private:
     bool _isAllEnabledProducing = false;
     bool _isAllEnabledReachable = false;
     bool _isAtLeastOnePollEnabled = false;
+
+
+    float _totalBatteryStateOfCharge = 0;
+    uint32_t _totalBatteryStateOfChargeDigits = 0;
+    float _totalBatteryUseableStateOfCharge = 0;
+    uint32_t _totalBatteryUseableStateOfChargeDigits = 0;
+    uint32_t _totalBatteryInstalledCapacity = 0;
+    uint32_t _totalBatteryAvailableCapacity = 0;
+    uint32_t _totalBatteryUseableCapacity = 0;
+    uint32_t _totalBatteryStoredEnergy = 0;
+    float _totalBatteryPower = 0;
+    uint32_t _totalBatteryPowerDigits = 0;
 };
 
 extern DatastoreClass Datastore;
