@@ -19,6 +19,7 @@
 #include "MqttHandleInverterTotal.h"
 #include "MqttHandlePowerLimiter.h"
 #include "MqttHandlePowerLimiterHass.h"
+#include "MqttHandleBatteryTotal.h"
 #include "MqttSettings.h"
 #include "NetworkSettings.h"
 #include "NtpSettings.h"
@@ -133,6 +134,7 @@ void setup()
     MqttHandleHass.init(scheduler);
     MqttHandlePowerLimiter.init(scheduler);
     MqttHandlePowerLimiterHass.init(scheduler);
+    MqttHandleBatteryTotal.init(scheduler);
 
     // Initialize WebApi
     ESP_LOGI(TAG, "Initializing WebApi...");

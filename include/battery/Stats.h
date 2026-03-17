@@ -72,6 +72,12 @@ public:
     bool isDischargeCurrentLimitValid() const { return _lastUpdateDischargeCurrentLimit > 0; }
     bool isChargeCurrentLimitValid() const { return _lastUpdateChargeCurrentLimit > 0; }
 
+    virtual std::optional<uint32_t> getTotalCapacityWh() const { return std::nullopt; }
+    virtual std::optional<uint32_t> getAvailableCapacityWh() const { return getTotalCapacityWh(); }
+    virtual std::optional<uint32_t> getUseableCapacityWh() const { return getAvailableCapacityWh(); }
+    virtual std::optional<float> getMinimumSoC() const { return 0; }
+    virtual std::optional<float> getMaximumSoC() const { return 100; }
+
     // returns true if the battery reached a critically low voltage/SoC,
     // such that it is in need of charging to prevent degredation.
     virtual bool getImmediateChargingRequest() const { return false; };
@@ -116,10 +122,6 @@ public:
 
     inline const String getName() const {
         return getConfig().Name;
-    }
-
-    virtual std::optional<uint32_t> getCapacityWh() const {
-        return std::nullopt;
     }
 
 protected:
