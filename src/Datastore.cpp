@@ -4,6 +4,7 @@
  */
 #include "Datastore.h"
 #include "Configuration.h"
+#include "battery/Controller.h"
 #include <Hoymiles.h>
 
 DatastoreClass Datastore;
@@ -116,6 +117,93 @@ void DatastoreClass::loop()
     _isAtLeastOnePollEnabled = pollEnabledCount > 0;
 
     _totalDcIrradiation = _totalDcIrradiationInstalled > 0 ? _totalDcPowerIrradiation / _totalDcIrradiationInstalled * 100.0f : 0;
+
+
+    {
+        std::optional<uint32_t> totalCapacityWh = std::nullopt;
+        std::optional<uint32_t> availableCapacityWh = std::nullopt;
+        std::optional<uint32_t> useableCapacityWh = std::nullopt;
+        std::optional<uint32_t> chargedCapacityWh = std::nullopt;
+        std::optional<uint32_t> storedEnergyWh = std::nullopt;
+
+        std::optional<float> totalPower = std::nullopt;
+        std::optional<float> totalCurrent = std::nullopt;
+        std::optional<float> totalVoltage = std::nullopt;
+
+        uint8_t maxPrecisionSoc = 0;
+        uint8_t maxPrecisionPower = 0;
+        uint8_t maxPrecisionCurrent = 0;
+        uint8_t maxPrecisionVoltage = 0;
+
+        for (uint8_t i = 0; i < BAT_MAX_COUNT; i++) {
+            const auto& config = Configuration.get().Batteries[i];
+            if (!config.Enabled || config.Uid == 0U) { continue; }
+
+            const auto& spStats = Battery.getStatsByUid(config.Uid);
+            if (spStats == nullptr) { continue; }
+
+            if (spStats->getTotalCapacityWh().has_value()) {
+                totalCapacityWh = totalCapacityWh.value_or(0) + *spStats->getTotalCapacityWh();
+            }
+
+            if (spStats->getAvailableCapacityWh().has_value()) {
+                const auto cap = *spStats->getAvailableCapacityWh();
+
+                if (spStats->isSoCValid()) {
+                    const auto soc = spStats->getSoC();
+
+                    availableCapacityWh = availableCapacityWh.value_or(0) + cap;
+                    chargedCapacityWh = chargedCapacityWh.value_or(0) + static_cast<uint32_t>((cap * soc) / 100.0f);
+
+                    const auto min = spStats->getMinimumSoC();
+                    if (min.has_value()) {
+                        storedEnergyWh = storedEnergyWh.value_or(0) + static_cast<uint32_t>((cap * std::max(soc - *min, 0.0F)) / 100.0f);
+                    }
+
+                    const auto useable = spStats->getUseableCapacityWh();
+                    if (useable.has_value()) {
+                        useableCapacityWh = useableCapacityWh.value_or(0) + *useable;
+                    }
+
+                    maxPrecisionSoc = std::max<uint8_t>(maxPrecisionSoc, spStats->getSoCPrecision());
+                }
+            }
+
+            if (spStats->isCurrentValid()) {
+                totalCurrent = totalCurrent.value_or(0.0f) + spStats->getChargeCurrent();
+                maxPrecisionCurrent = std::max<uint8_t>(maxPrecisionCurrent, spStats->getChargeCurrentPrecision());
+            }
+
+            if (spStats->isVoltageValid()) {
+                totalVoltage = totalVoltage.value_or(0.0f) + spStats->getVoltage();
+                maxPrecisionVoltage = std::max<uint8_t>(maxPrecisionVoltage, spStats->getVoltagePrecision());
+            }
+
+            if (spStats->isVoltageValid() && spStats->isCurrentValid()) {
+                totalPower = totalPower.value_or(0) + (spStats->getVoltage() * spStats->getChargeCurrent());
+            }
+        }
+
+        maxPrecisionPower = std::max<uint8_t>(maxPrecisionPower, maxPrecisionCurrent);
+
+        _totalBatteryInstalledCapacity = totalCapacityWh.value_or(0);
+        _totalBatteryAvailableCapacity = availableCapacityWh.value_or(0);
+        _totalBatteryUseableCapacity = useableCapacityWh.value_or(0);
+        _totalBatteryStoredEnergy = storedEnergyWh.value_or(0);
+
+        _totalBatteryPower = totalPower.value_or(0);
+        _totalBatteryPowerDigits = maxPrecisionPower;
+
+        if (availableCapacityWh.value_or(0) > 0) {
+            _totalBatteryStateOfCharge = 100.0 * (static_cast<float>(chargedCapacityWh.value_or(0)) / static_cast<float>(*availableCapacityWh));
+            _totalBatteryStateOfChargeDigits = maxPrecisionSoc;
+        }
+
+        if (useableCapacityWh.value_or(0) > 0) {
+            _totalBatteryUseableStateOfCharge = 100.0 * (static_cast<float>(storedEnergyWh.value_or(0)) / static_cast<float>(*useableCapacityWh));
+            _totalBatteryUseableStateOfChargeDigits = maxPrecisionSoc;
+        }
+    }
 }
 
 float DatastoreClass::getTotalAcYieldTotalEnabled()
@@ -212,4 +300,63 @@ bool DatastoreClass::getIsAtLeastOnePollEnabled()
 {
     std::lock_guard<std::mutex> lock(_mutex);
     return _isAtLeastOnePollEnabled;
+}
+
+
+float DatastoreClass::getTotalBatteryStateOfCharge()
+{
+    std::lock_guard<std::mutex> lock(_mutex);
+    return _totalBatteryStateOfCharge;
+}
+uint32_t DatastoreClass::getTotalBatteryStateOfChargeDigits()
+{
+    std::lock_guard<std::mutex> lock(_mutex);
+    return _totalBatteryStateOfChargeDigits;
+}
+
+float DatastoreClass::getTotalBatteryUseableStateOfCharge()
+{
+    std::lock_guard<std::mutex> lock(_mutex);
+    return _totalBatteryUseableStateOfCharge;
+}
+uint32_t DatastoreClass::getTotalBatteryUseableStateOfChargeDigits()
+{
+    std::lock_guard<std::mutex> lock(_mutex);
+    return _totalBatteryUseableStateOfChargeDigits;
+}
+
+uint32_t DatastoreClass::getTotalBatteryInstalledCapacity()
+{
+    std::lock_guard<std::mutex> lock(_mutex);
+    return _totalBatteryInstalledCapacity;
+}
+
+uint32_t DatastoreClass::getTotalBatteryAvailableCapacity()
+{
+    std::lock_guard<std::mutex> lock(_mutex);
+    return _totalBatteryAvailableCapacity;
+}
+
+uint32_t DatastoreClass::getTotalBatteryUsableCapacity()
+{
+    std::lock_guard<std::mutex> lock(_mutex);
+    return _totalBatteryUseableCapacity;
+}
+
+uint32_t DatastoreClass::getTotalBatteryStoredEnergy()
+{
+    std::lock_guard<std::mutex> lock(_mutex);
+    return _totalBatteryStoredEnergy;
+}
+
+float DatastoreClass::getTotalBatteryPower()
+{
+    std::lock_guard<std::mutex> lock(_mutex);
+    return _totalBatteryPower;
+}
+
+uint32_t DatastoreClass::getTotalBatteryPowerDigits()
+{
+    std::lock_guard<std::mutex> lock(_mutex);
+    return _totalBatteryPowerDigits;
 }

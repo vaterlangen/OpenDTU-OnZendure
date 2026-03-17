@@ -131,89 +131,41 @@ void WebApiWsLiveClass::generateOnBatteryJsonResponse(JsonVariant& root, bool al
     }
 
     {
-        std::optional<uint32_t> soc = std::nullopt;
-        std::optional<uint32_t> totalCapacityWh = std::nullopt;
-        std::optional<uint32_t> chargedCapacityWh = std::nullopt;
-        std::optional<float> totalPower = std::nullopt;
-        std::optional<float> totalCurrent = std::nullopt;
-        std::optional<float> totalVoltage = std::nullopt;
-        bool anyBatteryUpdated = false;
-        uint8_t maxPrecisionSoc = 0;
-        uint8_t maxPrecisionPower = 0;
-        uint8_t maxPrecisionCurrent = 0;
-        uint8_t maxPrecisionVoltage = 0;
-        uint8_t numBatteries = 0;
+        auto numBatteries = 0;
+        auto update = false;
+        std::shared_ptr<Batteries::Stats const> onlyBat = nullptr;
 
         for (uint8_t i = 0; i < BAT_MAX_COUNT; i++) {
             const auto& config = Configuration.get().Batteries[i];
             if (!config.Enabled || config.Uid == 0U) { continue; }
 
-            const auto& spStats = Battery.getStatsByUid(config.Uid);
+            const auto spStats = Battery.getStatsByUid(config.Uid);
             if (spStats == nullptr) { continue; }
 
-            if (spStats->getCapacityWh().has_value()) {
-                const auto cap = *spStats->getCapacityWh();
-                if (spStats->isSoCValid()) {
-                    totalCapacityWh = totalCapacityWh.value_or(0) + cap;
-                    soc = spStats->getSoC();
-                    chargedCapacityWh = chargedCapacityWh.value_or(0) + static_cast<uint32_t>((cap * soc.value_or(0)) / 100.0f);
-                    maxPrecisionSoc = std::max<uint8_t>(maxPrecisionSoc, spStats->getSoCPrecision());
-                }
-            }
+            if (numBatteries == 0) { onlyBat = spStats; }
 
-            if (spStats->isCurrentValid()) {
-                totalCurrent = totalCurrent.value_or(0.0f) + spStats->getChargeCurrent();
-                maxPrecisionCurrent = std::max<uint8_t>(maxPrecisionCurrent, spStats->getChargeCurrentPrecision());
-            }
-
-            if (spStats->isVoltageValid()) {
-                totalVoltage = totalVoltage.value_or(0.0f) + spStats->getVoltage();
-                maxPrecisionVoltage = std::max<uint8_t>(maxPrecisionVoltage, spStats->getVoltagePrecision());
-            }
-
-            if (spStats->isVoltageValid() && spStats->isCurrentValid()) {
-                totalPower = totalPower.value_or(0) + (spStats->getVoltage() * spStats->getChargeCurrent());
-            }
-
-            anyBatteryUpdated = anyBatteryUpdated || spStats->updateAvailable(_lastPublishBattery);
             numBatteries++;
+            update |= spStats->updateAvailable(_lastPublishBattery);
         }
 
-        maxPrecisionPower = std::max<uint8_t>(maxPrecisionPower, maxPrecisionCurrent);
-        if (totalVoltage.has_value()) {
-            totalVoltage = totalVoltage.value_or(0.0f) / static_cast<float>(numBatteries);
-        }
-
-        if (all || anyBatteryUpdated) {
+        if (all || update) {
             auto batteryObj = root["battery"].to<JsonObject>();
             batteryObj["enabled"] = numBatteries > 0;
 
             if (numBatteries > 0) {
-                if (numBatteries == 1) {
-                    if (soc.has_value()) {
-                        addTotalField(batteryObj, "soc", *soc, "%", maxPrecisionSoc);
+                addTotalField(batteryObj, "soc", Datastore.getTotalBatteryStateOfCharge(), "%", Datastore.getTotalBatteryStateOfChargeDigits());
+                addTotalField(batteryObj, "power", Datastore.getTotalBatteryPower(), "W", Datastore.getTotalBatteryPowerDigits());
+
+                if (numBatteries == 1 && onlyBat != nullptr) {
+                    if (onlyBat->isVoltageValid()) {
+                        addTotalField(batteryObj, "voltage", onlyBat->getVoltage(), "V", onlyBat->getVoltagePrecision());
                     }
 
-                    if (totalVoltage.has_value()) {
-                        addTotalField(batteryObj, "voltage", *totalVoltage, "V", maxPrecisionVoltage);
+                    if (onlyBat->isCurrentValid()) {
+                        addTotalField(batteryObj, "current", onlyBat->getChargeCurrent(), "A", onlyBat->getChargeCurrentPrecision());
                     }
-
-                    if (totalCurrent.has_value()) {
-                        addTotalField(batteryObj, "current", *totalCurrent, "A", maxPrecisionCurrent);
-                    }
-                } else {
-                    if (totalCapacityWh.has_value() && chargedCapacityWh.has_value()) {
-                        float soc = (static_cast<float>(*chargedCapacityWh) / static_cast<float>(*totalCapacityWh)) * 100.0f;
-                        addTotalField(batteryObj, "soc", soc, "%", maxPrecisionSoc);
-                    }
-                }
-
-                if (totalPower.has_value()) {
-                    addTotalField(batteryObj, "power", *totalPower, "W", maxPrecisionPower);
                 }
             }
-
-            if (!all) { _lastPublishBattery = millis(); }
         }
     }
 

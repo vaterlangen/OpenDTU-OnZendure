@@ -222,9 +222,11 @@ public:
         return getSolarPowerOverall();
     }
 
-    virtual std::optional<uint32_t> getCapacityWh() const {
-        return _capacity;
-    }
+    virtual std::optional<uint32_t> getTotalCapacityWh() const { return _capacity;}
+    virtual std::optional<uint32_t> getAvailableCapacityWh() const { return _capacity_avail;}
+    virtual std::optional<uint32_t> getUseableCapacityWh() const { return getUseableCapacity(); }
+    virtual std::optional<float> getMinimumSoC() const { return _soc_min; }
+    virtual std::optional<float> getMaximumSoC() const { return _soc_max; }
 
     virtual bool isSleeping() const { return _sleeping; };
     virtual bool isProducing() const { return _output_power > 0; };
@@ -242,7 +244,7 @@ protected:
     std::shared_ptr<PackStats> addPackData(size_t index, String serial);
 
     std::optional<uint16_t> getUseableCapacity() const {
-        if (_capacity_avail.has_value() && _capacity.has_value() && _soc_max.has_value() && _soc_min.has_value()) {
+        if ((_capacity_avail.has_value() || _capacity.has_value()) && _soc_max.has_value() && _soc_min.has_value()) {
             return _capacity_avail.value_or(*_capacity) * (static_cast<float>(*_soc_max - *_soc_min) / 100.0);
         }
         return std::nullopt;

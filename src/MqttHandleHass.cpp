@@ -123,6 +123,15 @@ void MqttHandleHassClass::publishConfig()
             }
         }
     }
+
+    publishDtuSensor("Battery Power", "bat/power", "W", "", DEVICE_CLS_PWR, STATE_CLS_MEASUREMENT, CATEGORY_NONE);
+    publishDtuSensor("State of Use", "bat/stateOfUse", "%", "mdi:battery-charging", DEVICE_CLS_BATTERY, STATE_CLS_MEASUREMENT, CATEGORY_NONE);
+    publishDtuSensor("State of Charge", "bat/stateOfCharge", "%", "mdi:battery-charging", DEVICE_CLS_BATTERY, STATE_CLS_MEASUREMENT, CATEGORY_NONE);
+
+    publishDtuSensor("Installed Capacity", "bat/installedCapacity", "Wh", "", DEVICE_CLS_ENERGY, STATE_CLS_MEASUREMENT, CATEGORY_NONE);
+    publishDtuSensor("Available Capacity", "bat/availableCapacity", "Wh", "", DEVICE_CLS_ENERGY, STATE_CLS_MEASUREMENT, CATEGORY_NONE);
+    publishDtuSensor("Useable Capacity", "bat/useableCapacity", "Wh", "", DEVICE_CLS_ENERGY, STATE_CLS_MEASUREMENT, CATEGORY_NONE);
+    publishDtuSensor("Stored Energy", "bat/storedEnergy", "Wh", "", DEVICE_CLS_ENERGY, STATE_CLS_MEASUREMENT, CATEGORY_NONE);
 }
 
 void MqttHandleHassClass::publishInverterField(std::shared_ptr<InverterAbstract> inv, const ChannelType_t type, const ChannelNum_t channel, const byteAssign_fieldDeviceClass_t fieldType, const bool clear)
