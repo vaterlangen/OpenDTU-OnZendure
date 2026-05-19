@@ -20,14 +20,12 @@ enum class State : uint8_t {
     Idle        = 0,
     Charging    = 1,
     Discharging = 2,
-    Invalid     = 255
 };
 
 enum class BypassMode : uint8_t {
     Automatic   = 0,
     AlwaysOff   = 1,
     AlwaysOn    = 2,
-    Invalid     = 255
 };
 
 enum class ChargeThroughState : uint8_t {
@@ -212,7 +210,7 @@ public:
     }
     static State parseState(uint8_t state)
     {
-        return state > 2 ? State::Invalid : static_cast<State>(state);
+        return state > 2 ? State::Idle : static_cast<State>(state);
     }
 
     virtual std::optional<String> const& getDeviceName() const { return _device; }
@@ -455,6 +453,14 @@ private:
     std::optional<uint64_t> _last_empty_timestamp = std::nullopt;
     std::optional<uint32_t> _last_empty_hours = std::nullopt;
     std::optional<ChargeThroughState>  _charge_through_state = std::nullopt;
+    std::optional<uint64_t> _keep_until_timestamp = std::nullopt;
+    std::optional<uint32_t> _keep_until_minutes = std::nullopt;
+
+    std::optional<float> _inaccurateSoC= std::nullopt;
+    uint32_t _inaccurateSoCTimestamp = 0;
+    bool _is_acurate_soc = false;
+
+    bool _reachable = false;
 
     ControlState _controlState = ControlState::NormalOperation;
 };
@@ -582,9 +588,9 @@ class PackStats {
             }
         }
         inline void setState(std::optional<uint8_t> number) {
-            if (!number.has_value()) { return; }
+            if (!number.has_value() || *number > 2) { return; }
 
-            _state = *number > 2 ? State::Invalid : static_cast<State>(*number);
+            _state = static_cast<State>(*number);
         }
         inline void setState(std::optional<State> state) {
             if (!state.has_value()) { return; }

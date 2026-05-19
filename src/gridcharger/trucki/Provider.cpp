@@ -106,36 +106,40 @@ void Provider::powerControlLoop()
 {
     auto& config = Configuration.get();
 
+    auto assignedBattery = Configuration.getBatteryConfig(config.GridCharger.AssignedBatteryUid);
+    auto batteryStats = assignedBattery && assignedBattery->Enabled ? Battery.getStatsByUid(assignedBattery->Uid) : nullptr;
+
     auto oMaxAcPower = _dataCurrent.get<DataPointLabel::MaxAcPower>();
     auto oOutputPower = _dataCurrent.get<DataPointLabel::DcPower>();
 
     // ***********************
     // Emergency charge
     // ***********************
-    auto stats = Battery.getStats();
-    if (!_batteryEmergencyCharging && config.GridCharger.EmergencyChargeEnabled && stats->getImmediateChargingRequest()) {
-        if (!oMaxAcPower) {
-            // TODO(andreasboehm): if this situation actually occurs, this message
-            // will be printed with high frequency for a prolonged time. how can
-            // we deal with that?
-            DTU_LOGW("Cannot perform emergency charging with unknown PSU max ac power value");
+    if (batteryStats) {
+        if (!_batteryEmergencyCharging && config.GridCharger.EmergencyChargeEnabled && batteryStats->getImmediateChargingRequest()) {
+            if (!oMaxAcPower) {
+                // TODO(andreasboehm): if this situation actually occurs, this message
+                // will be printed with high frequency for a prolonged time. how can
+                // we deal with that?
+                DTU_LOGW("Cannot perform emergency charging with unknown PSU max ac power value");
+                return;
+            }
+
+            _batteryEmergencyCharging = true;
+
+            DTU_LOGI("Emergency Charge AC Power %.02f", *oMaxAcPower);
+            setRequestedPowerAc(*oMaxAcPower);
             return;
         }
 
-        _batteryEmergencyCharging = true;
-
-        DTU_LOGI("Emergency Charge AC Power %.02f", *oMaxAcPower);
-        setRequestedPowerAc(*oMaxAcPower);
-        return;
-    }
-
-    if (_batteryEmergencyCharging && !stats->getImmediateChargingRequest()) {
-        // Battery request has changed. Set current to 0, wait for PSU to respond and then clear state
-        setRequestedPowerAc(0);
-        if (oOutputPower && oOutputPower < 1) {
-            _batteryEmergencyCharging = false;
+        if (_batteryEmergencyCharging && !batteryStats->getImmediateChargingRequest()) {
+            // Battery request has changed. Set current to 0, wait for PSU to respond and then clear state
+            setRequestedPowerAc(0);
+            if (oOutputPower && oOutputPower < 1) {
+                _batteryEmergencyCharging = false;
+            }
+            return;
         }
-        return;
     }
 
     // ***********************
@@ -194,8 +198,8 @@ void Provider::powerControlLoop()
             DTU_LOGV("powerTotal: %.0f, outputPower: %.01f, newPowerLimit: %.0f", powerTotal, *oOutputPower, newPowerLimit);
 
             // Check whether the battery SoC limit setting is enabled
-            if (config.Battery->Enabled && config.GridCharger.AutoPowerBatterySoCLimitsEnabled) {
-                uint8_t _batterySoC = Battery.getStats()->getSoC();
+            if (batteryStats && config.GridCharger.AutoPowerBatterySoCLimitsEnabled) {
+                uint8_t _batterySoC = batteryStats->getSoC();
                 // Sets power limit to 0 if the BMS reported SoC reaches or exceeds the user configured value
                 if (_batterySoC >= config.GridCharger.AutoPowerStopBatterySoCThreshold) {
                     newPowerLimit = 0;
@@ -217,7 +221,7 @@ void Provider::powerControlLoop()
                 float calculatedCurrent = efficiency * (newPowerLimit / *oOutputVoltage);
 
                 // Limit output current to value requested by BMS
-                float permissibleCurrent = stats->getChargeCurrentLimit() - (stats->getChargeCurrent() - *oOutputCurrent); // BMS current limit - current from other sources, e.g. Victron MPPT charger
+                float permissibleCurrent = batteryStats ? (batteryStats->getChargeCurrentLimit() - (batteryStats->getChargeCurrent() - *oOutputCurrent)) : std::numeric_limits<float>::max(); // BMS current limit - current from other sources, e.g. Victron MPPT charger
                 float outputCurrent = std::min(calculatedCurrent, permissibleCurrent);
                 outputCurrent = outputCurrent > 0 ? outputCurrent : 0;
 

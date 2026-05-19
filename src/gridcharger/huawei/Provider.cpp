@@ -147,6 +147,9 @@ void Provider::loop()
         _stats->updateFrom(*upNewData);
     }
 
+    auto assignedBattery = Configuration.getBatteryConfig(config.GridCharger.AssignedBatteryUid);
+    auto batteryStats = assignedBattery && assignedBattery->Enabled ? Battery.getStatsByUid(assignedBattery->Uid) : nullptr;
+
     auto oOutputCurrent = _dataPoints.get<DataPointLabel::OutputCurrent>();
     auto oOutputVoltage = _dataPoints.get<DataPointLabel::OutputVoltage>();
     auto oOutputPower = _dataPoints.get<DataPointLabel::OutputPower>();
@@ -178,34 +181,35 @@ void Provider::loop()
     // ***********************
     // Emergency charge
     // ***********************
-    auto stats = Battery.getStats();
-    if (!_batteryEmergencyCharging && config.GridCharger.EmergencyChargeEnabled && stats->getImmediateChargingRequest()) {
-        if (!oOutputVoltage) {
-            // TODO(schlimmchen): if this situation actually occurs, this message
-            // will be printed with high frequency for a prolonged time. how can
-            // we deal with that?
-            DTU_LOGW("Cannot perform emergency charging with unknown PSU output voltage value");
+    if (batteryStats) {
+        if (!_batteryEmergencyCharging && config.GridCharger.EmergencyChargeEnabled && batteryStats->getImmediateChargingRequest()) {
+            if (!oOutputVoltage) {
+                // TODO(schlimmchen): if this situation actually occurs, this message
+                // will be printed with high frequency for a prolonged time. how can
+                // we deal with that?
+                DTU_LOGW("Cannot perform emergency charging with unknown PSU output voltage value");
+                return;
+            }
+
+            _batteryEmergencyCharging = true;
+
+            // Set output current
+            float outputCurrent = config.GridCharger.AutoPowerUpperPowerLimit / *oOutputVoltage;
+            DTU_LOGI("Emergency Charge Output current %.02f", outputCurrent);
+            _setParameter(outputCurrent, Setting::OnlineCurrent);
             return;
         }
 
-        _batteryEmergencyCharging = true;
-
-        // Set output current
-        float outputCurrent = config.GridCharger.AutoPowerUpperPowerLimit / *oOutputVoltage;
-        DTU_LOGI("Emergency Charge Output current %.02f", outputCurrent);
-        _setParameter(outputCurrent, Setting::OnlineCurrent);
-        return;
-    }
-
-    if (_batteryEmergencyCharging && !stats->getImmediateChargingRequest()) {
-        // Battery request has changed. Set current to 0, wait for PSU to respond and then clear state
-        // TODO(schlimmchen): this is repeated very often for up to (polling interval) seconds. maybe
-        // trigger sending request for data immediately? otherwise implement a backoff instead.
-        _setParameter(0, Setting::OnlineCurrent);
-        if (oOutputCurrent && *oOutputCurrent < 1) {
-            _batteryEmergencyCharging = false;
+        if (_batteryEmergencyCharging && !batteryStats->getImmediateChargingRequest()) {
+            // Battery request has changed. Set current to 0, wait for PSU to respond and then clear state
+            // TODO(schlimmchen): this is repeated very often for up to (polling interval) seconds. maybe
+            // trigger sending request for data immediately? otherwise implement a backoff instead.
+            _setParameter(0, Setting::OnlineCurrent);
+            if (oOutputCurrent && *oOutputCurrent < 1) {
+                _batteryEmergencyCharging = false;
+            }
+            return;
         }
-        return;
     }
 
     // ***********************
@@ -256,8 +260,8 @@ void Provider::loop()
                 inputPowerDiff, newOutputPowerTarget, *oOutputPower);
 
             // Check whether the battery SoC limit setting is enabled
-            if (config.Battery->Enabled && config.GridCharger.AutoPowerBatterySoCLimitsEnabled) {
-                uint8_t _batterySoC = Battery.getStats()->getSoC();
+            if (batteryStats && config.GridCharger.AutoPowerBatterySoCLimitsEnabled) {
+                uint8_t _batterySoC = batteryStats->getSoC();
                 // Sets power limit to 0 if the BMS reported SoC reaches or exceeds the user configured value
                 if (_batterySoC >= config.GridCharger.AutoPowerStopBatterySoCThreshold) {
                     newOutputPowerTarget = 0;
@@ -287,7 +291,7 @@ void Provider::loop()
                 float calculatedCurrent = newOutputPowerTarget / *oOutputVoltage;
 
                 // Limit output current to value requested by BMS
-                float permissibleCurrent = stats->getChargeCurrentLimit() - (stats->getChargeCurrent() - *oOutputCurrent); // BMS current limit - current from other sources, e.g. Victron MPPT charger
+                float permissibleCurrent = batteryStats ? (batteryStats->getChargeCurrentLimit() - (batteryStats->getChargeCurrent() - *oOutputCurrent)) : std::numeric_limits<float>::max(); // BMS current limit - current from other sources, e.g. Victron MPPT charger
                 float outputCurrent = std::min(calculatedCurrent, permissibleCurrent);
                 outputCurrent = outputCurrent > 0 ? outputCurrent : 0;
 

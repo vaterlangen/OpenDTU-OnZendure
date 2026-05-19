@@ -218,11 +218,13 @@ bool Controller::updateAvailable(uint32_t since) const
     return false;
 }
 
-float Controller::getDischargeCurrentLimit()
+float Controller::getDischargeCurrentLimitByUid(const uint32_t uid)
 {
     auto const& config = Configuration.get();
+    auto batteryConfig = Configuration.getBatteryConfig(uid);
+    auto spStats = getStatsByUid(uid);
 
-    if (!config.Battery->EnableDischargeCurrentLimit) { return FLT_MAX; }
+    if (!batteryConfig || !spStats || !batteryConfig->EnableDischargeCurrentLimit) { return FLT_MAX; }
 
     /**
      * we are looking at two limits: (1) the static discharge current limit
@@ -235,16 +237,16 @@ float Controller::getDischargeCurrentLimit()
      *
      * the smaller limit will be enforced, i.e., returned here.
      */
-    auto spStats = getStats();
 
-    auto getConfiguredLimit = [&config,&spStats]() -> float {
-        auto configuredLimit = config.Battery->DischargeCurrentLimit;
+
+    auto getConfiguredLimit = [&batteryConfig, &config, &spStats]() -> float {
+        auto configuredLimit = batteryConfig->DischargeCurrentLimit;
         if (configuredLimit <= 0.0f) { return FLT_MAX; } // invalid setting
 
         bool useSoC = spStats->getSoCAgeSeconds() <= 60 && !config.PowerLimiter.IgnoreSoc;
 
         if (useSoC) {
-            auto threshold = config.Battery->DischargeCurrentLimitBelowSoc;
+            auto threshold = batteryConfig->DischargeCurrentLimitBelowSoc;
             if (spStats->getSoC() >= threshold) { return FLT_MAX; }
 
             return configuredLimit;
@@ -252,15 +254,15 @@ float Controller::getDischargeCurrentLimit()
 
         bool voltageValid = spStats->getVoltageAgeSeconds() <= 60;
         if (voltageValid) {
-            auto threshold = config.Battery->DischargeCurrentLimitBelowVoltage;
+            auto threshold = batteryConfig->DischargeCurrentLimitBelowVoltage;
             if (spStats->getVoltage() >= threshold) { return FLT_MAX; }
         }
 
         return configuredLimit;
     };
 
-    auto getBatteryLimit = [&config,&spStats]() -> float {
-        if (!config.Battery->UseBatteryReportedDischargeCurrentLimit) { return FLT_MAX; }
+    auto getBatteryLimit = [&batteryConfig, &spStats]() -> float {
+        if (!batteryConfig->UseBatteryReportedDischargeCurrentLimit) { return FLT_MAX; }
 
         if (spStats->getDischargeCurrentLimitAgeSeconds() > 60) { return FLT_MAX; } // unusable
 

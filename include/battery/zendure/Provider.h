@@ -29,6 +29,7 @@ protected:
     void setSoC(const float soc, const uint32_t timestamp = 0, const uint8_t precision = 2);
     bool alive() const { return _stats->getAgeSeconds() < ZENDURE_ALIVE_SECONDS; }
 
+    ChargeThroughState getChargeThroughState(ChargeThroughState defaultValue = ChargeThroughState::Disabled) { return _stats->_charge_through_state.value_or(defaultValue); };
     void setChargeThroughState(const ChargeThroughState value, const bool publish = true);
 
     void publishProperty(const String& topic, const String& property, const String& value) const;
@@ -48,10 +49,9 @@ protected:
     std::shared_ptr<HassIntegration> _hassIntegration;
 
     bool isReachable() const {
-        if (_lastSeen == 0) {
-            return false;
-        }
-        return (_lastSeen - millis()) < 90;
+        if (_lastSeen == 0) { return false;}
+
+        return (millis() - _lastSeen) < 30000; // 30 seconds
     }
 
     void setLastSeen(uint64_t ms) { _lastSeen = ms; }
@@ -83,6 +83,8 @@ private:
     void rescheduleSunCalc() { _nextSunCalc = 0; }
     void publishPersistentSettings(const char* subtopic, const String& payload);
     void setControlState(ControlState mode, const bool publish = true);
+    bool isControlState(ControlState mode) const { return _stats->_controlState == mode; }
+    bool checkBatteryProtection();
 
     uint32_t _rateFullUpdateMs = 0;
     uint64_t _nextFullUpdate = 0;

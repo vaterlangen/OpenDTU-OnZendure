@@ -365,6 +365,23 @@ void MqttHandleHassClass::publishBinarySensor(
     doc["pl_on"] = payload_on;
     doc["pl_off"] = payload_off;
 
+    const CONFIG_T& config = Configuration.get();
+    String avtyTpl =
+        String("{% if value.startswith('") +
+        config.Mqtt.Lwt.Value_Online +
+        "') %}" +
+        config.Mqtt.Lwt.Value_Online +
+        "{% else %}" +
+        config.Mqtt.Lwt.Value_Offline +
+        "{% endif %}";
+    doc["avty_tpl"] = avtyTpl.c_str();
+
+    if (state_topic.startsWith(config.Mqtt.Lwt.Topic)) {
+        doc["qos"] = config.Mqtt.Lwt.Qos;
+        doc["val_tpl"] = avtyTpl.c_str();
+    }
+
+
     addCommonMetadata(doc, "", "", device_class, state_class, category);
 
     const String configTopic = "binary_sensor/" + root_device + "/" + sensor_id + "/config";
@@ -413,6 +430,17 @@ void MqttHandleHassClass::publishSensor(
     doc["avty_t"] = MqttSettings.getPrefix() + config.Mqtt.Lwt.Topic;
     doc["pl_avail"] = config.Mqtt.Lwt.Value_Online;
     doc["pl_not_avail"] = config.Mqtt.Lwt.Value_Offline;
+
+    String avtyTpl =
+        String("{% if value.startswith('") +
+        config.Mqtt.Lwt.Value_Online +
+        "') %}" +
+        config.Mqtt.Lwt.Value_Online +
+        "{% else %}" +
+        config.Mqtt.Lwt.Value_Offline +
+        "{% endif %}";
+
+    doc["avty_tpl"] = avtyTpl.c_str();
 
     const String configTopic = "sensor/" + root_device + "/" + sensor_id + "/config";
     publish(configTopic, doc);

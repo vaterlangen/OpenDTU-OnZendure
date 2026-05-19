@@ -91,7 +91,7 @@ void MqttHandlePowerLimiterHassClass::publishConfig()
                 "threshold/voltage/full_solar_passthrough_stop", "V", 16, 60, 0.1);
     }
 
-    if (config.Battery->Enabled && !config.PowerLimiter.IgnoreSoc) {
+    if (Configuration.getBatteriesEnabledCount() > 0 && !config.PowerLimiter.IgnoreSoc) {
         publishNumber("DPL battery SoC start threshold", "mdi:battery-charging",
                 "config", "threshold/soc/start", "threshold/soc/start", "%", 0, 100, 1.0);
         publishNumber("DPL battery SoC stop threshold", "mdi:battery-charging",

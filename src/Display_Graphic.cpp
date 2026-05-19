@@ -7,7 +7,6 @@
 #include "Datastore.h"
 #include "I18n.h"
 #include "PinMapping.h"
-#include <battery/Controller.h>
 #include <powermeter/Controller.h>
 #include <NetworkSettings.h>
 #include <map>
@@ -336,7 +335,7 @@ void DisplayGraphicClass::loop()
     bool timing = (_mExtra % 9) >= 3;
 
     bool powerMeterAvailable = Configuration.get().PowerMeter.Enabled;
-    bool batteryAvailable = Configuration.get().Battery->Enabled && Battery.getStats()->isSoCValid();
+    bool batteryAvailable = Datastore.getTotalBatteryInstalledCapacity() > 0;
 
     if (showText && timing && !displayPowerSave && (powerMeterAvailable || batteryAvailable)) {
         // erase the third line and print the battery SoC or power meter value instead.
@@ -373,8 +372,8 @@ void DisplayGraphicClass::loop()
                 snprintf(_fmtText, sizeof(_fmtText), _i18n_meter_power_w.c_str(), acPower);
             }
         } else {
-            auto precision = Battery.getStats()->getSoCPrecision();
-            float soc = Battery.getStats()->getSoC();
+            auto precision = Datastore.getTotalBatteryStateOfChargeDigits();
+            float soc = Datastore.getTotalBatteryStateOfCharge();
 
             if (precision == 1) {
                 snprintf(_fmtText, sizeof(_fmtText), _i18n_battery_soc_1_fraction.c_str(), soc);

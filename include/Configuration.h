@@ -215,7 +215,7 @@ struct BATTERY_ZENDURE_CONFIG_T {
     bool BuzzerEnable;
     enum ControlMode : uint8_t { ControlModeFull = 0, ControlModeOnce = 1, ControlModeReadOnly = 2 };
     ControlMode ControlMode;
-    uint8_t ChargeThroughResetLevel;
+    uint16_t ChargeThroughKeepMinutes;
     enum ConnectionType { LocalMqtt = 0, ZendureMqtt = 1, Bluetooth = 2 };
     ConnectionType ConnectionType;
     char Server[ZENDURE_MAX_SERVER_STRLEN + 1];
@@ -307,6 +307,7 @@ struct GRID_CHARGER_CONFIG_T {
     GridChargerCanConfig Can;
     GridChargerHuaweiConfig Huawei;
     GridChargerTruckiConfig Trucki;
+    uint32_t AssignedBatteryUid;
 };
 using GridChargerConfig = struct GRID_CHARGER_CONFIG_T;
 
@@ -397,6 +398,7 @@ struct CONFIG_T {
             char Value_Online[MQTT_MAX_LWTVALUE_STRLEN + 1];
             char Value_Offline[MQTT_MAX_LWTVALUE_STRLEN + 1];
             uint8_t Qos;
+            bool Retain;
         } Lwt;
 
         struct {
@@ -465,6 +467,9 @@ struct CONFIG_T {
     PowerLimiterConfig PowerLimiter;
 
     BatteryConfig Batteries[BAT_MAX_COUNT];
+    uint8_t BatteriesEnabledCount;
+
+    // TODO: Remove if everything is adjusted to use the Batteries array instead of a pointer to a single battery config
     BatteryConfig* Battery;
 
     GridChargerConfig GridCharger;
@@ -510,6 +515,7 @@ public:
     BATTERY_CONFIG_T* getFreeBatterySlot();
     BATTERY_CONFIG_T* getBatteryConfig(const uint32_t uid);
     void deleteBatteryById(const uint8_t id);
+    uint8_t getBatteriesEnabledCount();
 
     int8_t getIndexForLogModule(const String& moduleName) const;
 

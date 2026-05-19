@@ -16,7 +16,8 @@ public:
     bool updateSettings(const uint32_t uid);
     void removeByUid(const uint32_t uid);
 
-    float getDischargeCurrentLimit();
+    float getDischargeCurrentLimit() { return FLT_MAX; }
+    float getDischargeCurrentLimitByUid(const uint32_t uid);
 
     std::shared_ptr<Stats const> getStats() const;
     std::shared_ptr<Stats const> getStatsByUid(const uint32_t uid) const;

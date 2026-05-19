@@ -166,6 +166,25 @@ void WebApiGridChargerClass::onAdminGet(AsyncWebServerRequest* request)
 
     ConfigurationClass::serializeGridChargerConfig(config.GridCharger, root);
 
+    auto batCount = 0;
+    JsonArray batteries = root["batteries"].to<JsonArray>();
+    for (uint8_t i = 0; i < BAT_MAX_COUNT; i++) {
+
+        auto bat = Configuration.getBatteryConfig(config.Batteries[i].Uid);
+        if (!bat) { continue; }
+        if (bat->Provider == 7) { continue; }
+
+        JsonObject obj = batteries.add<JsonObject>();
+        obj["uid"] = bat->Uid;
+        obj["name"] = String(bat->Name);
+        batCount++;
+    }
+
+    if (batCount == 0) {
+        root["enabled"] = false;
+        root["assigned_battery_uid"] = 0;
+    }
+
     auto can = root["can"].to<JsonObject>();
     ConfigurationClass::serializeGridChargerCanConfig(config.GridCharger.Can, can);
 
@@ -207,7 +226,8 @@ void WebApiGridChargerClass::onAdminPost(AsyncWebServerRequest* request)
         !(root["trucki"]["password"].is<const char*>()) ||
         !(root["voltage_limit"].is<float>()) ||
         !(root["lower_power_limit"].is<float>()) ||
-        !(root["upper_power_limit"].is<float>())) {
+        !(root["upper_power_limit"].is<float>()) ||
+        !(root["assigned_battery_uid"].is<uint8_t>())) {
         retMsg["message"] = "Values are missing or of wrong type!";
         retMsg["code"] = WebApiError::GenericValueMissing;
         response->setLength();
@@ -233,6 +253,16 @@ void WebApiGridChargerClass::onAdminPost(AsyncWebServerRequest* request)
         !isValidRange("offline_current", HuaweiProvider::MIN_OFFLINE_CURRENT, HuaweiProvider::MAX_OFFLINE_CURRENT, WebApiError::R48xxCurrentLimitOutOfRange) ||
         !isValidRange("input_current_limit", HuaweiProvider::MIN_INPUT_CURRENT_LIMIT, HuaweiProvider::MAX_INPUT_CURRENT_LIMIT, WebApiError::R48xxCurrentLimitOutOfRange)) {
         return;
+    }
+
+    if (root["enabled"].as<bool>()) {
+        auto bat = Configuration.getBatteryConfig(root["assigned_battery_uid"].as<uint8_t>());
+        if (!bat) {
+            retMsg["message"] = "Assigned battery not found!";
+            retMsg["code"] = WebApiError::GenericValueMissing;
+            WebApi.sendJsonResponse(request, response, __FUNCTION__, __LINE__);
+            return;
+        }
     }
 
     {

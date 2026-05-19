@@ -52,7 +52,7 @@ bool ZendureMqttProvider::init()
     // store device ID as we will need them for checking when receiving messages
     setTopics(config.Zendure->AppKey, config.Zendure->DeviceId);
 
-    // disable charge through cycle if disable by config
+    // disable charge through cycle - not supported by cloud API
     setChargeThroughState(ChargeThroughState::Disabled);
 
     DTU_LOGI("INIT CLOUD CONNECTION");

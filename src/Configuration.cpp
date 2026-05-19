@@ -28,6 +28,7 @@ void ConfigurationClass::init(Scheduler& scheduler)
 
     memset(&config, 0x0, sizeof(config));
 
+    // TODO: Remove if everything is adjusted to use the Batteries array instead of a pointer to a single battery config
     config.Battery = &config.Batteries[0];
 }
 
@@ -206,7 +207,7 @@ void ConfigurationClass::serializeBatteryZendureConfig(BatteryZendureConfig cons
     target["charge_through_interval"] = source.ChargeThroughInterval;
     target["buzzer_enable"] = source.BuzzerEnable;
     target["control_mode"] = source.ControlMode;
-    target["charge_through_reset"] = source.ChargeThroughResetLevel;
+    target["charge_through_keep_minutes"] = source.ChargeThroughKeepMinutes;
     target["connection_type"] = source.ConnectionType;
     target["server"] = source.Server;
     target["port"] = source.Port;
@@ -300,6 +301,7 @@ void ConfigurationClass::serializeGridChargerConfig(GridChargerConfig const& sou
     target["upper_power_limit"] = source.AutoPowerUpperPowerLimit;
     target["stop_batterysoc_threshold"] = source.AutoPowerStopBatterySoCThreshold;
     target["target_power_consumption"] = source.AutoPowerTargetPowerConsumption;
+    target["assigned_battery_uid"] = source.AssignedBatteryUid;
 }
 
 void ConfigurationClass::serializeGridChargerCanConfig(GridChargerCanConfig const& source, JsonObject& target)
@@ -384,6 +386,7 @@ bool ConfigurationClass::write()
     mqtt_lwt["value_online"] = config.Mqtt.Lwt.Value_Online;
     mqtt_lwt["value_offline"] = config.Mqtt.Lwt.Value_Offline;
     mqtt_lwt["qos"] = config.Mqtt.Lwt.Qos;
+    mqtt_lwt["retain"] = config.Mqtt.Lwt.Retain;
 
     JsonObject mqtt_tls = mqtt["tls"].to<JsonObject>();
     mqtt_tls["enabled"] = config.Mqtt.Tls.Enabled;
@@ -680,7 +683,7 @@ void ConfigurationClass::deserializeBatteryZendureConfig(JsonObject const& sourc
     target.SunriseOffset = source["sunrise_offset"] | BATTERY_ZENDURE_SUNRISE_OFFSET;
     target.SunsetOffset = source["sunset_offset"] | BATTERY_ZENDURE_SUNSET_OFFSET;
     target.ChargeThroughEnable = source["charge_through_enable"] | BATTERY_ZENDURE_CHARGE_THROUGH_ENABLE;
-    target.ChargeThroughResetLevel = source["charge_through_reset"] | BATTERY_ZENDURE_CHARGE_THROUGH_RESET_LEVEL;
+    target.ChargeThroughKeepMinutes = source["charge_through_keep_minutes"] | BATTERY_ZENDURE_CHARGE_THROUGH_KEEP_MINUTES;
     target.ChargeThroughInterval = source["charge_through_interval"] | BATTERY_ZENDURE_CHARGE_THROUGH_INTERVAL;
     target.BuzzerEnable = source["buzzer_enable"] |BATTERY_ZENDURE_BUZZER_ENABLE;
     target.ControlMode = source["control_mode"] | BatteryZendureConfig::ControlMode::ControlModeFull;
@@ -772,6 +775,7 @@ void ConfigurationClass::deserializeGridChargerConfig(JsonObject const& source, 
     target.AutoPowerUpperPowerLimit = source["upper_power_limit"] | GRIDCHARGER_AUTO_POWER_UPPER_POWER_LIMIT;
     target.AutoPowerStopBatterySoCThreshold = source["stop_batterysoc_threshold"] | GRIDCHARGER_AUTO_POWER_STOP_BATTERYSOC_THRESHOLD;
     target.AutoPowerTargetPowerConsumption = source["target_power_consumption"] | GRIDCHARGER_AUTO_POWER_TARGET_POWER_CONSUMPTION;
+    target.AssignedBatteryUid = source["assigned_battery_uid"] | 0U;
 }
 
 void ConfigurationClass::deserializeGridChargerCanConfig(JsonObject const& source, GridChargerCanConfig& target)
@@ -910,6 +914,7 @@ bool ConfigurationClass::read()
     strlcpy(config.Mqtt.Lwt.Value_Online, mqtt_lwt["value_online"] | MQTT_LWT_ONLINE, sizeof(config.Mqtt.Lwt.Value_Online));
     strlcpy(config.Mqtt.Lwt.Value_Offline, mqtt_lwt["value_offline"] | MQTT_LWT_OFFLINE, sizeof(config.Mqtt.Lwt.Value_Offline));
     config.Mqtt.Lwt.Qos = mqtt_lwt["qos"] | MQTT_LWT_QOS;
+    config.Mqtt.Lwt.Retain = mqtt_lwt["retain"] | MQTT_LWT_RETAIN;
 
     JsonObject mqtt_tls = mqtt["tls"];
     config.Mqtt.Tls.Enabled = mqtt_tls["enabled"] | MQTT_TLS;
@@ -1007,6 +1012,7 @@ bool ConfigurationClass::read()
     deserializePowerLimiterConfig(doc["powerlimiter"], config.PowerLimiter);
 
     JsonArray batteries = doc["batteries"];
+    config.BatteriesEnabledCount = 0;
     for (uint8_t i = 0; i < BAT_MAX_COUNT; i++) {
         JsonObject battery = batteries[i].as<JsonObject>();
         deserializeBatteryConfig(battery, config.Batteries[i]);
@@ -1014,7 +1020,13 @@ bool ConfigurationClass::read()
         if (config.Batteries[i].Uid == 0U) {
             deleteBatteryById(i);
         }
+
+        if (config.Batteries[i].Enabled) {
+            config.BatteriesEnabledCount++;
+        }
     }
+
+
 
     JsonObject gridcharger = doc["gridcharger"];
     deserializeGridChargerConfig(gridcharger, config.GridCharger);
@@ -1365,6 +1377,12 @@ void ConfigurationClass::migrateOnZendure()
             // set a fixed UID for migrated battery
             config.Batteries[index].Uid = 0x4711AFFEU;
             strlcpy(config.Batteries[index].Name, "Migrated Battery", sizeof(config.Batteries[index].Name));
+
+            // if there was a battery configured in the old config, we assume that the user wants to use the grid charger features of OpenDTU-OnZendure as well and enable the grid charger with default settings. The user can then adjust the settings as needed.
+            if (config.GridCharger.Enabled) {
+                config.GridCharger.AssignedBatteryUid = config.Batteries[index].Uid;
+            }
+
             index++;
         }
 
@@ -1471,6 +1489,17 @@ void ConfigurationClass::deleteBatteryById(const uint8_t id)
     JsonDocument root;
     JsonVariant emptyVariant = root;
     deserializeBatteryConfig(emptyVariant, _battery);
+}
+
+uint8_t ConfigurationClass::getBatteriesEnabledCount()
+{
+    uint8_t count = 0;
+    for (uint8_t i = 0; i < BAT_MAX_COUNT; i++) {
+        if (config.Batteries[i].Uid != 0 && config.Batteries[i].Enabled) {
+            count++;
+        }
+    }
+    return count;
 }
 
 int8_t ConfigurationClass::getIndexForLogModule(const String& moduleName) const

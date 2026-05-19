@@ -11,101 +11,128 @@
 
         <form @submit="saveChargerConfig">
             <CardElement :text="$t('gridchargeradmin.Configuration')" textVariant="text-bg-primary">
-                <InputElement
-                    :label="$t('gridchargeradmin.EnableGridCharger')"
-                    v-model="gridChargerConfigList.enabled"
-                    type="checkbox"
-                    wide
-                />
-
-                <template v-if="gridChargerConfigList.enabled">
-                    <div class="row mb-3">
-                        <label class="col-sm-4 col-form-label">
-                            {{ $t('gridchargeradmin.Provider') }}
-                        </label>
-                        <div class="col-sm-8">
-                            <select class="form-select" v-model="gridChargerConfigList.provider">
-                                <option v-for="provider in providerTypeList" :key="provider.key" :value="provider.key">
-                                    {{ $t(`gridchargeradmin.Provider` + provider.value) }}
-                                </option>
-                            </select>
-                        </div>
+                <div class="row mb-3">
+                    <label class="col-sm-4 col-form-label">
+                        {{ $t('gridchargeradmin.Battery') }}
+                    </label>
+                    <div class="col-sm-8">
+                        <select
+                            class="form-select"
+                            v-model="gridChargerConfigList.assigned_battery_uid"
+                            placeholder="$t('gridchargeradmin.Battery')"
+                        >
+                            <option v-for="battery in gridChargerConfigList.batteries" :key="battery.uid" :value="battery.uid">
+                                {{ battery.name }}
+                            </option>
+                        </select>
                     </div>
+                </div>
 
-                    <template v-if="gridChargerConfigList.provider === 0">
+                <template v-if="gridChargerConfigList.assigned_battery_uid && gridChargerConfigList.batteries.length > 0">
+                    <InputElement
+                        :label="$t('gridchargeradmin.EnableGridCharger')"
+                        v-model="gridChargerConfigList.enabled"
+                        type="checkbox"
+                        wide
+                    />
+
+                    <template v-if="gridChargerConfigList.enabled">
                         <div class="row mb-3">
                             <label class="col-sm-4 col-form-label">
-                                {{ $t('gridchargeradmin.HardwareInterface') }}
+                                {{ $t('gridchargeradmin.Provider') }}
                             </label>
                             <div class="col-sm-8">
-                                <select class="form-select" v-model="gridChargerConfigList.can.hardware_interface">
-                                    <option v-for="type in hardwareInterfaceList" :key="type.key" :value="type.key">
-                                        {{ $t('gridchargeradmin.HardwareInterface' + type.value) }}
+                                <select class="form-select" v-model="gridChargerConfigList.provider">
+                                    <option v-for="provider in providerTypeList" :key="provider.key" :value="provider.key">
+                                        {{ $t(`gridchargeradmin.Provider` + provider.value) }}
                                     </option>
                                 </select>
                             </div>
                         </div>
 
-                        <div class="row mb-3" v-if="gridChargerConfigList.can.hardware_interface === 0">
-                            <label class="col-sm-4 col-form-label">
-                                {{ $t('gridchargeradmin.CanControllerFrequency') }}
-                            </label>
-                            <div class="col-sm-8">
-                                <select class="form-select" v-model="gridChargerConfigList.can.controller_frequency">
-                                    <option
-                                        v-for="frequency in frequencyTypeList"
-                                        :key="frequency.key"
-                                        :value="frequency.value"
-                                    >
-                                        {{ frequency.key }} MHz
-                                    </option>
-                                </select>
+                        <template v-if="gridChargerConfigList.provider === 0">
+                            <div class="row mb-3">
+                                <label class="col-sm-4 col-form-label">
+                                    {{ $t('gridchargeradmin.HardwareInterface') }}
+                                </label>
+                                <div class="col-sm-8">
+                                    <select class="form-select" v-model="gridChargerConfigList.can.hardware_interface">
+                                        <option v-for="type in hardwareInterfaceList" :key="type.key" :value="type.key">
+                                            {{ $t('gridchargeradmin.HardwareInterface' + type.value) }}
+                                        </option>
+                                    </select>
+                                </div>
                             </div>
-                        </div>
-                    </template>
 
-                    <template v-if="gridChargerConfigList.provider === 1">
+                            <div class="row mb-3" v-if="gridChargerConfigList.can.hardware_interface === 0">
+                                <label class="col-sm-4 col-form-label">
+                                    {{ $t('gridchargeradmin.CanControllerFrequency') }}
+                                </label>
+                                <div class="col-sm-8">
+                                    <select class="form-select" v-model="gridChargerConfigList.can.controller_frequency">
+                                        <option
+                                            v-for="frequency in frequencyTypeList"
+                                            :key="frequency.key"
+                                            :value="frequency.value"
+                                        >
+                                            {{ frequency.key }} MHz
+                                        </option>
+                                    </select>
+                                </div>
+                            </div>
+                        </template>
+
+                        <template v-if="gridChargerConfigList.provider === 1">
+                            <InputElement
+                                :label="$t('gridchargeradmin.IpAddress')"
+                                v-model="gridChargerConfigList.trucki.ip_address"
+                                type="text"
+                                pattern="\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b"
+                                maxlength="15"
+                                wide
+                            />
+
+                            <InputElement
+                                :label="$t('gridchargeradmin.Password')"
+                                :tooltip="$t('gridchargeradmin.PasswordHint')"
+                                v-model="gridChargerConfigList.trucki.password"
+                                type="password"
+                                maxlength="64"
+                                wide
+                            />
+                        </template>
+
                         <InputElement
-                            :label="$t('gridchargeradmin.IpAddress')"
-                            v-model="gridChargerConfigList.trucki.ip_address"
-                            type="text"
-                            pattern="\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b"
-                            maxlength="15"
+                            :label="$t('gridchargeradmin.EnableAutoPower')"
+                            v-model="gridChargerConfigList.auto_power_enabled"
+                            type="checkbox"
                             wide
                         />
 
                         <InputElement
-                            :label="$t('gridchargeradmin.Password')"
-                            :tooltip="$t('gridchargeradmin.PasswordHint')"
-                            v-model="gridChargerConfigList.trucki.password"
-                            type="password"
-                            maxlength="64"
+                            v-if="gridChargerConfigList.auto_power_enabled"
+                            :label="$t('gridchargeradmin.EnableBatterySoCLimits')"
+                            v-model="gridChargerConfigList.auto_power_batterysoc_limits_enabled"
+                            type="checkbox"
+                            wide
+                        />
+
+                        <InputElement
+                            :label="$t('gridchargeradmin.EnableEmergencyCharge')"
+                            :tooltip="$t('gridchargeradmin.EnableEmergencyChargeHint')"
+                            v-model="gridChargerConfigList.emergency_charge_enabled"
+                            type="checkbox"
+                            wide
+                        />
+
+                        <InputElement
+                            :label="$t('gridchargeradmin.EnableEmergencyCharge')"
+                            :tooltip="$t('gridchargeradmin.EnableEmergencyChargeHint')"
+                            v-model="gridChargerConfigList.emergency_charge_enabled"
+                            type="checkbox"
                             wide
                         />
                     </template>
-
-                    <InputElement
-                        :label="$t('gridchargeradmin.EnableAutoPower')"
-                        v-model="gridChargerConfigList.auto_power_enabled"
-                        type="checkbox"
-                        wide
-                    />
-
-                    <InputElement
-                        v-if="gridChargerConfigList.auto_power_enabled"
-                        :label="$t('gridchargeradmin.EnableBatterySoCLimits')"
-                        v-model="gridChargerConfigList.auto_power_batterysoc_limits_enabled"
-                        type="checkbox"
-                        wide
-                    />
-
-                    <InputElement
-                        :label="$t('gridchargeradmin.EnableEmergencyCharge')"
-                        :tooltip="$t('gridchargeradmin.EnableEmergencyChargeHint')"
-                        v-model="gridChargerConfigList.emergency_charge_enabled"
-                        type="checkbox"
-                        wide
-                    />
                 </template>
             </CardElement>
 

@@ -150,7 +150,7 @@ void LocalMqttProvider::writeSettings() {
 
     setBuzzer(config.Zendure->BuzzerEnable);
     setAutoshutdown(config.Zendure->AutoShutdown);
-    setBypassMode(config.Zendure->BypassMode);
+    //setBypassMode(config.Zendure->BypassMode);
     publishProperty(_topicWrite, ZENDURE_REPORT_PV_BRAND, "1");         // means Hoymiles
     publishProperty(_topicWrite, ZENDURE_REPORT_PV_AUTO_MODEL, "0");    // we did static setup
     publishProperty(_topicWrite, ZENDURE_REPORT_SMART_MODE, "0");       // disable smart mode
@@ -192,7 +192,7 @@ void LocalMqttProvider::timesync()
     time_t now;
     if (!_topicTimesyncReply.isEmpty() && Utils::getEpoch(&now)) {
         MqttSettings.publishGeneric(_topicTimesyncReply, "{\"zoneOffset\": \"+00:00\", \"messageId\": " + String(++_messageCounter) + ", \"timestamp\": " + String(now) + "}", false, 0);
-        DTU_LOGD("Timesync Reply");
+        DTU_LOGD("Timesync Reply Sent");
     }
 }
 
@@ -200,6 +200,7 @@ void LocalMqttProvider::onMqttMessageTimesync(espMqttClientTypes::MessagePropert
         char const* topic, uint8_t const* payload, size_t len)
 {
     if (!_topicReport.equals(topic)) { return; }
+    DTU_LOGD("Timesync Request Received");
     timesync();
 }
 
@@ -211,6 +212,7 @@ void LocalMqttProvider::onMqttMessageReport(espMqttClientTypes::MessagePropertie
         return;
     }
     auto ms = millis();
+    //DTU_LOGD("Update Reply Received");
     //DTU_LOGD("Report received on topic '%s' - expecting '%s'", topic, _topicReport.c_str());
 
     std::string const src = std::string(reinterpret_cast<const char*>(payload), len);

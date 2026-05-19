@@ -35,6 +35,7 @@ void Stats::getLiveViewData(JsonVariant& root) const
     addLiveViewInSection(root, section, "lastEmptyCharge", _last_empty_hours, "h", 0);
     addLiveViewInSection(root, section, "remainOutTime", _remain_out_time, "min", 0);
     addLiveViewInSection(root, section, "remainInTime", _remain_in_time, "min", 0);
+    addLiveViewInSection(root, section, "zendure.keepUntil", _keep_until_minutes, "min", 0);
 
     // values go into the "Settings" card of the web application
     section = "settings";
@@ -48,10 +49,12 @@ void Stats::getLiveViewData(JsonVariant& root) const
     addLiveViewInSection(root, section, "inputLimit", _output_limit, "W", 0);
     addLiveViewInSection(root, section, "minSoC", _soc_min, "%", 1);
     addLiveViewInSection(root, section, "maxSoC", _soc_max, "%", 1);
+    addLiveViewInSection(root, section, "zendure.packMinSoc", _packSocMin, "%", 1);
     addLiveViewBooleanInSection(root, section, "autoRecover", _auto_recover);
     addLiveViewBooleanInSection(root, section, "autoShutdown", _auto_shutdown);
     addLiveViewTextInSection(root, section, "bypassMode", std::string(bypassModeToString(_bypass_mode)));
     addLiveViewBooleanInSection(root, section, "buzzer", _buzzer);
+
 
     // pack data goes to dedicated cards of the web application
     char buff[30];
@@ -131,6 +134,10 @@ void Stats::mqttPublish() const
     publish("bypass", boolToString(_bypass_state));
     publish("lastFullCharge", _last_full_hours);
     publish("lastEmpty", _last_empty_hours);
+    publish("remainOutTime", _remain_out_time);
+    publish("remainInTime", _remain_in_time);
+    publish("packMinSoc", _packSocMin, 1);
+    publish("keepForMinutes", _keep_until_minutes);
 
     publish("chargeThroughState", String(chargeThroughStateToString(_charge_through_state)));
 
