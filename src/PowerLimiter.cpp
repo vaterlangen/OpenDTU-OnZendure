@@ -35,11 +35,17 @@ static auto sSolarPoweredFilter = [](PowerLimiterInverter const& inv) {
 
 static const char sSolarPoweredExpression[] = "solar-powered";
 
-static auto sSmartBufferPoweredFilter = [](PowerLimiterInverter const& inv) {
-    return inv.isSmartBufferPowered();
+static auto sSecondarySmartBufferPoweredFilter = [](PowerLimiterInverter const& inv) {
+    return inv.isSmartBufferPowered() && !inv.hasPriority();
 };
 
-static const char sSmartBufferPoweredExpression[] = "smart-buffer-powered";
+static const char sSecondarySmartBufferPoweredExpression[] = "secondary-smart-buffer-powered";
+
+static auto sPrimarySmartBufferPoweredFilter = [](PowerLimiterInverter const& inv) {
+    return inv.isSmartBufferPowered() && inv.hasPriority();
+};
+
+static const char sPrimarySmartBufferPoweredExpression[] = "primary-smart-buffer-powered";
 
 PowerLimiterClass PowerLimiter;
 
@@ -343,7 +349,7 @@ void PowerLimiterClass::loop()
 
     if (usesBatteryPoweredInverter()) {
         DTU_LOGD("battery interface %sabled, SoC %.1f %% (%s), age %u s (%s)",
-                (config.Battery.Enabled?"en":"dis"),
+                (config.Battery->Enabled?"en":"dis"),
                 Battery.getStats()->getSoC(),
                 (config.PowerLimiter.IgnoreSoc?"ignored":"used"),
                 Battery.getStats()->getSoCAgeSeconds(),
@@ -390,14 +396,19 @@ void PowerLimiterClass::loop()
 
     auto coveredBySolar = updateInverterLimits(inverterTotalPower, sSolarPoweredFilter, sSolarPoweredExpression);
     auto remainingAfterSolar = (inverterTotalPower >= coveredBySolar) ? inverterTotalPower - coveredBySolar : 0;
-    auto coveredBySmartBuffer = updateInverterLimits(remainingAfterSolar, sSmartBufferPoweredFilter, sSmartBufferPoweredExpression);
-    auto remainingAfterSmartBuffer = (remainingAfterSolar >= coveredBySmartBuffer) ? remainingAfterSolar - coveredBySmartBuffer : 0;
-    auto powerBusUsage = calcPowerBusUsage(remainingAfterSmartBuffer);
+
+    auto coveredByPrimarySmartBuffer = updateInverterLimits(remainingAfterSolar, sPrimarySmartBufferPoweredFilter, sPrimarySmartBufferPoweredExpression);
+    auto remainingAfterPrimarySmartBuffer = (remainingAfterSolar >= coveredByPrimarySmartBuffer) ? remainingAfterSolar - coveredByPrimarySmartBuffer : 0;
+
+    auto coveredBySecondarySmartBuffer = updateInverterLimits(remainingAfterPrimarySmartBuffer, sSecondarySmartBufferPoweredFilter, sSecondarySmartBufferPoweredExpression);
+    auto remainingAfterSecondarySmartBuffer = (remainingAfterPrimarySmartBuffer >= coveredBySecondarySmartBuffer) ? remainingAfterPrimarySmartBuffer - coveredBySecondarySmartBuffer : 0;
+
+    auto powerBusUsage = calcPowerBusUsage(remainingAfterSecondarySmartBuffer);
     auto coveredByBattery = updateInverterLimits(powerBusUsage, sBatteryPoweredFilter, sBatteryPoweredExpression);
 
     for (auto const &upInv : _inverters) { upInv->debug(); }
 
-    _lastExpectedInverterOutput = coveredBySolar + coveredBySmartBuffer + coveredByBattery;
+    _lastExpectedInverterOutput = coveredBySolar + coveredByPrimarySmartBuffer + coveredBySecondarySmartBuffer + coveredByBattery;
 
     bool limitUpdated = updateInverters();
 
@@ -461,7 +472,7 @@ float PowerLimiterClass::getBatteryVoltage(bool log) const {
 
     float bmsVoltage = -1;
     auto stats = Battery.getStats();
-    if (config.Battery.Enabled
+    if (config.Battery->Enabled
             && stats->isVoltageValid()
             && stats->getVoltageAgeSeconds() < 60) {
         res = bmsVoltage = stats->getVoltage();
@@ -857,7 +868,7 @@ bool PowerLimiterClass::testThreshold(float socThreshold, float voltThreshold,
     // prefer SoC provided through battery interface, unless disabled by user
     auto stats = Battery.getStats();
     if (!config.PowerLimiter.IgnoreSoc
-            && config.Battery.Enabled
+            && config.Battery->Enabled
             && socThreshold > 0.0
             && stats->isSoCValid()
             && stats->getSoCAgeSeconds() < 60) {

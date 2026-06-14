@@ -19,6 +19,7 @@
 #include "MqttHandleInverterTotal.h"
 #include "MqttHandlePowerLimiter.h"
 #include "MqttHandlePowerLimiterHass.h"
+#include "MqttHandleBatteryTotal.h"
 #include "MqttSettings.h"
 #include "NetworkSettings.h"
 #include "NtpSettings.h"
@@ -87,6 +88,11 @@ void setup()
             Configuration.get().Cfg.VersionOnBattery, CONFIG_VERSION_ONBATTERY);
         Configuration.migrateOnBattery();
     }
+    if (Configuration.get().Cfg.VersionOnZendure != CONFIG_VERSION_ONZENDURE) {
+        ESP_LOGI(TAG, "Migrating OpenDTU-OnZendure-specific config from %d to %d",
+            Configuration.get().Cfg.VersionOnZendure, CONFIG_VERSION_ONZENDURE);
+        Configuration.migrateOnZendure();
+    }
 
     // Set configured log levels
     Logging.applyLogLevels();
@@ -128,6 +134,7 @@ void setup()
     MqttHandleHass.init(scheduler);
     MqttHandlePowerLimiter.init(scheduler);
     MqttHandlePowerLimiterHass.init(scheduler);
+    MqttHandleBatteryTotal.init(scheduler);
 
     // Initialize WebApi
     ESP_LOGI(TAG, "Initializing WebApi...");

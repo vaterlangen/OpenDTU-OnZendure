@@ -29,12 +29,9 @@ bool Stats::updateAvailable(uint32_t since) const
 
 void Stats::getLiveViewData(JsonVariant& root) const
 {
-    String manufacturer = "unknown";
-    if (_oManufacturer.has_value()) { manufacturer = *_oManufacturer; }
-
-    root["manufacturer"] = manufacturer;
-    if (!_serial.isEmpty()) {
-        root["serial"] = _serial;
+    root["manufacturer"] = _oManufacturer.value_or("unknown");
+    if (_serial.has_value()) {
+        root["serial"] = *_serial;
     }
     if (!_fwversion.isEmpty()) {
         root["fwversion"] = _fwversion;
@@ -42,7 +39,14 @@ void Stats::getLiveViewData(JsonVariant& root) const
     if (!_hwversion.isEmpty()) {
         root["hwversion"] = _hwversion;
     }
-    root["data_age"] = getAgeSeconds();
+
+    root["data_age_ms"] = getAgeMilliSeconds();
+    root["max_age"] = 20;
+    root["enabled"] = true;
+    root["poll_enabled"] = isReachable() || !isSleeping();
+    root["reachable"] = isReachable();
+    root["producing"] = isProducing();
+    root["limit_absolute"] = getLimit();
 
     if (isSoCValid()) {
         addLiveViewValue(root, "SoC", _soc, "%", _socPrecision);
@@ -56,6 +60,10 @@ void Stats::getLiveViewData(JsonVariant& root) const
         addLiveViewValue(root, "current", _current, "A", _currentPrecision);
     }
 
+    if (isPowerValid()) {
+        addLiveViewValue(root, "power", getPower(), "W", 2);
+    }
+
     if (isDischargeCurrentLimitValid()) {
         addLiveViewValue(root, "dischargeCurrentLimitation", _dischargeCurrentLimit, "A", 1);
     }
@@ -63,6 +71,14 @@ void Stats::getLiveViewData(JsonVariant& root) const
     if (isChargeCurrentLimitValid()) {
         addLiveViewValue(root, "chargeCurrentLimitation", _chargeCurrentLimit, "A", 1);
     }
+
+    String name = getName();
+    if (name.length() > 0) {
+        root["name"] = name;
+    }
+
+    root["id"] = getBatteryIndex();
+    root["uid"] = getBatteryUid();
 
     root["showIssues"] = supportsAlarmsAndWarnings();
 }
@@ -95,29 +111,34 @@ uint32_t Stats::getMqttFullPublishIntervalMs() const
 void Stats::mqttPublish() const
 {
     if (_oManufacturer.has_value()) {
-        MqttSettings.publish("battery/manufacturer", *_oManufacturer);
+        publish("manufacturer", *_oManufacturer);
     }
 
-    MqttSettings.publish("battery/dataAge", String(getAgeSeconds()));
+    String name = getName();
+    if (name.length() > 0) {
+        publish("name", name);
+    }
+
+    publish("dataAge", String(getAgeSeconds()));
 
     if (isSoCValid()) {
-        MqttSettings.publish("battery/stateOfCharge", String(_soc));
+        publish("stateOfCharge", String(_soc));
     }
 
     if (isVoltageValid()) {
-        MqttSettings.publish("battery/voltage", String(_voltage));
+        publish("voltage", String(_voltage));
     }
 
     if (isCurrentValid()) {
-        MqttSettings.publish("battery/current", String(_current));
+        publish("current", String(_current));
     }
 
     if (isDischargeCurrentLimitValid()) {
-        MqttSettings.publish("battery/settings/dischargeCurrentLimitation", String(_dischargeCurrentLimit));
+        publish("settings/dischargeCurrentLimitation", String(_dischargeCurrentLimit));
     }
 
     if (isChargeCurrentLimitValid()) {
-        MqttSettings.publish("battery/settings/chargeCurrentLimitation", String(_chargeCurrentLimit));
+        publish("settings/chargeCurrentLimitation", String(_chargeCurrentLimit));
     }
 }
 

@@ -76,9 +76,9 @@ void Provider::deinit()
 
 Provider::Interface Provider::getInterface() const
 {
-    auto const& config = Configuration.get();
-    if (0x00 == config.Battery.Serial.Interface) { return Interface::Uart; }
-    if (0x01 == config.Battery.Serial.Interface) { return Interface::Transceiver; }
+    auto const& config = _stats->getConfig();
+    if (0x00 == config.Serial->Interface) { return Interface::Uart; }
+    if (0x01 == config.Serial->Interface) { return Interface::Transceiver; }
     return Interface::Invalid;
 }
 
@@ -164,8 +164,8 @@ void Provider::sendRequest(uint8_t pollInterval)
 
 void Provider::loop()
 {
-    auto const& config = Configuration.get();
-    uint8_t pollInterval = config.Battery.Serial.PollingInterval;
+    auto const& config = _stats->getConfig();
+    uint8_t pollInterval = config.Serial->PollingInterval;
 
     while (_upSerial->available()) {
         rxData(_upSerial->read());

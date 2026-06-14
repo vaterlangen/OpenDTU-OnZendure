@@ -32,7 +32,6 @@ protected:
 private:
     static String sanitizeUniqueId(const char* value);
 
-    String _serial = "0001"; // pseudo-serial, can be replaced in future with real serialnumber
     std::shared_ptr<Stats> _spStats = nullptr;
 
     bool _publishSensors = true;

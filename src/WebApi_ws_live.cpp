@@ -131,30 +131,43 @@ void WebApiWsLiveClass::generateOnBatteryJsonResponse(JsonVariant& root, bool al
         if (!all) { _lastPublishGridCharger = millis(); }
     }
 
-    auto spStats = Battery.getStats();
-    if (all || spStats->updateAvailable(_lastPublishBattery)) {
-        auto batteryObj = root["battery"].to<JsonObject>();
-        batteryObj["enabled"] = config.Battery.Enabled;
+    {
+        auto numBatteries = 0;
+        auto update = false;
+        std::shared_ptr<Batteries::Stats const> onlyBat = nullptr;
 
-        if (config.Battery.Enabled) {
-            if (spStats->isSoCValid()) {
-                addTotalField(batteryObj, "soc", spStats->getSoC(), "%", spStats->getSoCPrecision());
-            }
+        for (uint8_t i = 0; i < BAT_MAX_COUNT; i++) {
+            const auto& config = Configuration.get().Batteries[i];
+            if (!config.Enabled || config.Uid == 0U) { continue; }
 
-            if (spStats->isVoltageValid()) {
-                addTotalField(batteryObj, "voltage", spStats->getVoltage(), "V", 2);
-            }
+            const auto spStats = Battery.getStatsByUid(config.Uid);
+            if (spStats == nullptr) { continue; }
 
-            if (spStats->isCurrentValid()) {
-                addTotalField(batteryObj, "current", spStats->getChargeCurrent(), "A", spStats->getChargeCurrentPrecision());
-            }
+            if (numBatteries == 0) { onlyBat = spStats; }
 
-            if (spStats->isVoltageValid() && spStats->isCurrentValid()) {
-                addTotalField(batteryObj, "power", spStats->getVoltage() * spStats->getChargeCurrent(), "W", 1);
-            }
+            numBatteries++;
+            update |= spStats->updateAvailable(_lastPublishBattery);
         }
 
-        if (!all) { _lastPublishBattery = millis(); }
+        if (all || update) {
+            auto batteryObj = root["battery"].to<JsonObject>();
+            batteryObj["enabled"] = numBatteries > 0;
+
+            if (numBatteries > 0) {
+                addTotalField(batteryObj, "soc", Datastore.getTotalBatteryStateOfCharge(), "%", Datastore.getTotalBatteryStateOfChargeDigits());
+                addTotalField(batteryObj, "power", Datastore.getTotalBatteryPower(), "W", Datastore.getTotalBatteryPowerDigits());
+
+                if (numBatteries == 1 && onlyBat != nullptr) {
+                    if (onlyBat->isVoltageValid()) {
+                        addTotalField(batteryObj, "voltage", onlyBat->getVoltage(), "V", onlyBat->getVoltagePrecision());
+                    }
+
+                    if (onlyBat->isCurrentValid()) {
+                        addTotalField(batteryObj, "current", onlyBat->getChargeCurrent(), "A", onlyBat->getChargeCurrentPrecision());
+                    }
+                }
+            }
+        }
     }
 
     if (all || (PowerMeter.getLastUpdate() - _lastPublishPowerMeter) < halfOfAllMillis) {
