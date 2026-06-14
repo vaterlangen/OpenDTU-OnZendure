@@ -43,10 +43,13 @@ bool Provider::init()
 
     _rateFullUpdateMs   = config.Zendure->PollingInterval * 1000;
     _nextFullUpdate     = millis() + _rateFullUpdateMs / 2;
+    _rateOutputCalcMs   = ZENDURE_SECONDS_OUTPUTCALC * 1000;
+    _nextOutputCalc     = _nextFullUpdate + _rateOutputCalcMs;
+
     _rateTimesyncMs     = ZENDURE_SECONDS_TIMESYNC * 1000;
     _nextTimesync       = _nextFullUpdate;
     _rateSunCalcMs      = ZENDURE_SECONDS_SUNPOSITION * 1000;
-    _nextSunCalc        = millis() + _rateSunCalcMs / 2;
+    _nextSunCalc        = _nextOutputCalc;
 
     return true;
 }
@@ -75,11 +78,17 @@ void Provider::loop()
     auto requestOutputLimit = _requested_limit.value_or(config.Zendure->OutputLimit);
 
     // if auto shutdown is enabled and battery switches to idle at night, turn off status requests to prevent keeping battery awake
-    if (config.Zendure->AutoShutdown && !isDayPeriod && _stats->_state.value_or(State::Invalid) == State::Idle) {
-        DTU_LOGD("Zendure is idle at night and auto shutdown is enabled, skipping loop to prevent keeping battery awake");
-        checkBatteryProtection();
-        return;
+    if (_stats->_state.has_value() || !alive()) {
+        if (config.Zendure->AutoShutdown && !isDayPeriod && _stats->_state.value_or(State::Idle) == State::Idle) {
+            // only check battery protection once before going to sleep, but force it succeeds
+            if (!_stats->_sleeping && checkBatteryProtection()) {
+                _stats->_sleeping = true;
+                DTU_LOGI("Auto shutdown enabled and battery is idle at night - going to sleep until sunrise");
+            }
+            return;
+        }
     }
+    _stats->_sleeping = false;
 
     if (ms >= _nextFullUpdate) {
         _nextFullUpdate = ms + _rateFullUpdateMs;
@@ -87,7 +96,6 @@ void Provider::loop()
             MqttSettings.publishGeneric(_topicRead, _payloadFullUpdate, false, 0);
             DTU_LOGD("Update Request Sent");
         }
-        setControlState(ControlState::BatteryProtection);
     }
 
     // if the device is not talking to us, we cannot do anything - so skip all the logic
@@ -104,10 +112,22 @@ void Provider::loop()
     }
     _stats->_reachable = true;
 
+    if (ms >= _nextTimesync) {
+        _nextTimesync = ms + _rateTimesyncMs;
+        timesync();
+
+        // update settings (will be skipped if unchanged)
+        setInverterMax(config.Zendure->MaxOutput);
+
+        // republish settings - just to be sure
+        writeSettings();
+    }
+
     // check if we run in schedule mode
     if (ms >= _nextSunCalc) {
         _nextSunCalc = ms + _rateSunCalcMs;
 
+        rescheduleOutputCalc();
         calculateTimeDiff();
 
         struct tm timeinfo_local;
@@ -153,23 +173,35 @@ void Provider::loop()
         }
     }
 
+    if (ms >= _nextOutputCalc) {
+        _nextOutputCalc = ms + _rateOutputCalcMs;
 
-    checkBatteryProtection();
+        checkBatteryProtection();
 
-    // ensure charge through settings
-    switch (_stats->_charge_through_state.value_or(ChargeThroughState::Disabled)) {
-        case ChargeThroughState::Hard:
+        // ensure charge through settings
+        switch (_stats->_charge_through_state.value_or(ChargeThroughState::Disabled)) {
+            case ChargeThroughState::Hard:
+                requestOutputLimit = 0;
+                [[fallthrough]]; // Fallthrough to also apply SoC limits and bypass mode
+            case ChargeThroughState::Soft:
+            case ChargeThroughState::Keep:
+                setTargetSoCs(config.Zendure->MinSoC, 100);
+                setBypassMode(BatteryZendureConfig::BypassMode_t::AlwaysOff);
+                break;
+            default:
+                setTargetSoCs(config.Zendure->MinSoC, config.Zendure->MaxSoC);
+                setBypassMode(config.Zendure->BypassMode);
+                break;
+        }
+
+        // force output limit to 0 if we are in battery protection mode - this is a last resort safety measure to prevent battery damage
+        // in case the protection mode was triggered by low SoC but could not set the limit to 0 due to some error (e.g. MQTT broker unavailable)
+        if (isControlState(ControlState::BatteryProtection)) {
             requestOutputLimit = 0;
-            [[fallthrough]]; // Fallthrough to also apply SoC limits and bypass mode
-        case ChargeThroughState::Soft:
-        case ChargeThroughState::Keep:
-            setTargetSoCs(config.Zendure->MinSoC, 100);
-            setBypassMode(BatteryZendureConfig::BypassMode_t::AlwaysOff);
-            break;
-        default:
-            setTargetSoCs(config.Zendure->MinSoC, config.Zendure->MaxSoC);
-            setBypassMode(config.Zendure->BypassMode);
-            break;
+        }
+
+        // finally, send limit to BMS
+        setOutputLimit(requestOutputLimit);
     }
 }
 
@@ -219,6 +251,9 @@ void Provider::checkChargeThrough(uint32_t predictHours /* = 0 */)
         setChargeThroughState(ChargeThroughState::Disabled);
         return;
     }
+
+    // if we are already in keep mode, we do not need to check anything, just make sure to exit this mode when the time is up
+    if (getChargeThroughState() == ChargeThroughState::Keep) { return; }
 
     // hard charge through will start after configured interval (given in hours)
     auto hardChargeThrough = config.Zendure->ChargeThroughInterval;
@@ -270,13 +305,7 @@ uint16_t Provider::calcOutputLimit(uint16_t limit) const
 void Provider::setControlState(ControlState mode, const bool publish /* = true */)
 {
     if (isControlState(mode)) { return; }
-    if (_stats->getConfig().Zendure->OutputControl == BatteryZendureConfig::OutputControl_t::ControlNone) {
-        return;
-    }
-
-    if (_stats->_controlState == mode) {
-        return;
-    }
+    if (_stats->getConfig().Zendure->OutputControl == BatteryZendureConfig::OutputControl_t::ControlNone) { return; }
 
     DTU_LOGD("Setting control state to '%s'!", Stats::controlStateToString(mode));
 
@@ -616,6 +645,9 @@ void Provider::calculatePackStats(const uint64_t timestamp)
     } else if (!_stats->_hasAccurateSoC && _stats->_inaccurateSoC.has_value()) {
         _stats->_packSocMin = *_stats->_inaccurateSoC;
     }
+
+    _stats->_capacity = capacity;
+    _stats->_capacity_avail = capacity_avail;
 
     _stats->_cellMinMilliVolt = cellMin;
     _stats->_cellMaxMilliVolt = cellMax;
