@@ -534,7 +534,6 @@ class PackStats {
 
         explicit PackStats(String serial, String name, uint16_t capacity, uint8_t cellCount = 15) :
             _serial(serial), _name(name), _capacity(capacity), _cellCount(cellCount) {}
-
         void setSerial(String serial) { _serial = serial; }
         void setHwVersion(String&& version) { _hwversion = std::move(version); }
         void setFwVersion(String&& version) { _fwversion = std::move(version); }

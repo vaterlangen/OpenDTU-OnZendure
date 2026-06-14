@@ -779,7 +779,8 @@
         "batteryEdit": "Edit Battery",
         "batteryList": "Battery List",
         "batteryAdd": "Add a new battery",
-        "batteryAddHint": "Hint: You can set additional parameters after you have created the battery. Use the pen icon in the battery list.",
+        "batteryAddHint": "<b>Hint</b>: You can set additional parameters after you have created the battery. Use the pen icon in the battery list.",
+        "batteryMaxHint": "Adding more than one battery is currently supported for Zendure batteries only.",
         "batteryDeleteMsg": "Are you sure you want to delete the battery \"{name}\" with unique id {uid}?",
         "buttons": {
             "add": "@:inverteradmin.Add",
@@ -892,9 +893,9 @@
             "buzzerEnable": "Audible signals",
             "controlMode": "Access mode",
             "controlModes": {
-                "Full": "Full control",
-                "Once": "Write settings only once",
-                "ReadOnly": "Read-Only"
+                "full": "Full control",
+                "once": "Write settings only once",
+                "readOnly": "Read-Only"
             },
             "chargeThrough": "Charge Through Settings",
             "chargeThroughEnabled": "Charge Through",
@@ -1381,9 +1382,9 @@
         "unavail": "N/A",
         "useableCapacity": "Useable capacity",
         "controlMode": "@:batteryadmin.zendure.controlMode",
-        "full-access": "@:batteryadmin.zendure.controlModes.Full",
+        "full-access": "@:batteryadmin.zendure.controlModes.full",
         "write-once": "Write Once",
-        "read-only": "@:batteryadmin.zendure.controlModes.ReadOnly",
+        "read-only": "@:batteryadmin.zendure.controlModes.readOnly",
         "zendure": {
             "chargeThroughState": "Charge through state",
             "chargeThroughStates": {

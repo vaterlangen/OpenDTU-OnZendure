@@ -498,6 +498,8 @@ export default defineComponent({
             window.onbeforeunload = () => {
                 this.socket?.close();
             };
+
+            this.socket?.connect();
         },
         initDataAgeing() {
             this.dataAgeInterval = setInterval(() => {

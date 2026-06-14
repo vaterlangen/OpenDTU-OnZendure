@@ -28,6 +28,7 @@ void ConfigurationClass::init(Scheduler& scheduler)
 
     memset(&config, 0x0, sizeof(config));
 
+    // TODO(vaterlangen): Remove if everything is adjusted to use the Batteries array instead of a pointer to a single battery config
     config.Battery = &config.Batteries[0];
 }
 

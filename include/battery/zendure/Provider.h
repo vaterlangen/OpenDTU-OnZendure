@@ -70,7 +70,7 @@ protected:
     String _topicPersistentSettingsPublish = String();
     String _topicPersistentSettingsSubscribe = String();
 
-     String _payloadFullUpdate = String();
+    String _payloadFullUpdate = String();
 
     bool _full_log_supported = false;
 

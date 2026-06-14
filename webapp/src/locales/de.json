@@ -780,6 +780,7 @@
         "batteryList": "Batterieliste",
         "batteryAdd": "Neue Batterie hinzufügen",
         "batteryAddHint": "<b>Hinweis:</b> Du kannst zusätzliche Parameter einstellen, nachdem du die Batterie erstellt hast. Verwende dazu das Stiftsymbol in der Batterieliste.",
+        "batteryMaxHint": "Das Hinzufügen von mehreren Batterien wir derzeit nur für Zendure Batterien unterstützt.",
         "batteryDeleteMsg": "Soll die Batterie \"{name}\" mit der eindeutigen nummer {uid} wirklich gelöscht werden?",
         "buttons": {
             "add": "@:inverteradmin.Add",
@@ -892,9 +893,9 @@
             "buzzerEnable": "Akustische Signale",
             "controlMode": "Zugriffsmodus",
             "controlModes": {
-                "Full": "Volle Kontrolle",
-                "Once": "Einstellungen einmalig schreiben",
-                "ReadOnly": "Nur Lesezugriff"
+                "full": "Volle Kontrolle",
+                "once": "Einstellungen einmalig schreiben",
+                "readOnly": "Nur Lesezugriff"
             },
             "chargeThrough": "Vollladeeinstellungen",
             "chargeThroughEnabled": "Vollladen",
@@ -1376,9 +1377,9 @@
         "unavail": "N/A",
         "useableCapacity": "Nutzbare Kapazität",
         "controlMode": "@:batteryadmin.zendure.controlMode",
-        "full-access": "@:batteryadmin.zendure.controlModes.Full",
+        "full-access": "@:batteryadmin.zendure.controlModes.full",
         "write-once": "Einmalig Schreiben",
-        "read-only": "@:batteryadmin.zendure.controlModes.ReadOnly",
+        "read-only": "@:batteryadmin.zendure.controlModes.readOnly",
         "outputVoltage": "Ausgangsspannung",
         "zendure": {
             "chargeThroughState": "Status Vollladezyklus",
