@@ -8,22 +8,21 @@
             <form class="form-inline" v-on:submit.prevent="onSubmit">
                 <div class="form-group">
                     <label>{{ $t('batteryadmin.provider') }}</label>
-                    <div class="col-sm-8">
-                        <select class="form-select" v-model="newBatteryData.provider">
-                            <option v-if="batteries.length > 1" :key="7" :value="7">
-                                {{ $t('batteryadmin.providers.zendure') }}
-                            </option>
-                            <option
-                                v-else
-                                v-for="provider in providerTypeList"
-                                :key="provider.key"
-                                :value="provider.key"
-                            >
-                                {{ $t('batteryadmin.providers.' + provider.value) }}
-                            </option>
-                        </select>
-                    </div>
+                    <select class="form-select" v-model="newBatteryData.provider">
+                        <option v-if="batteries.length > 1" :key="7" :value="7">
+                            {{ $t('batteryadmin.providers.zendure') }}
+                        </option>
+                        <option v-else v-for="provider in providerTypeList" :key="provider.key" :value="provider.key">
+                            {{ $t('batteryadmin.providers.' + provider.value) }}
+                        </option>
+                    </select>
                 </div>
+                <div
+                    v-if="batteries.length > 1"
+                    class="alert alert-info"
+                    role="alert"
+                    v-html="$t('batteryadmin.batteryMaxHint')"
+                ></div>
                 <div class="form-group">
                     <label>{{ $t('batteryadmin.name') }}</label>
                     <input
@@ -443,10 +442,7 @@
                         </div>
                     </CardElement>
                 </template>
-            </div>
-
-            <template v-if="selectedBatteryData.enabled && selectedBatteryData.provider == 7">
-                <CardElement :text="$t('batteryadmin.ZendureConfiguration')" textVariant="text-bg-primary" addSpace>
+                <template v-if="selectedBatteryData.provider == 7">
                     <div class="row mb-3">
                         <label for="zendure_connection_type" class="col-sm-2 col-form-label">
                             {{ $t('batteryadmin.zendure.connectionType') }}
@@ -638,8 +634,8 @@
                             </div>
                         </div>
                     </template>
-                </CardElement>
-            </template>
+                </template>
+            </div>
 
             <div
                 class="tab-pane fade show"
