@@ -8,7 +8,7 @@
 
 #undef TAG
 static const char* TAG = "battery";
-static const char* SUBTAG = "Zendure";
+#define SUBTAG _stats->getConfig().Name
 
 namespace Batteries::Zendure {
 
@@ -17,38 +17,40 @@ ZendureMqttProvider::ZendureMqttProvider()
 
 bool ZendureMqttProvider::init()
 {
-    auto const& config = Configuration.get();
+    auto const& config = _stats->getConfig();
 
-    if (strlen(config.Battery.Zendure.AppKey) < 8 || strlen(config.Battery.Zendure.AppKey) > 16) {
+    if (strlen(config.Zendure->AppKey) < 8 || strlen(config.Zendure->AppKey) > 16) {
         DTU_LOGE("Invalid app key length (expected between 8 and 16 characters)!");
         return false;
     }
 
-    if (strlen(config.Battery.Zendure.Secret) != 32) {
+    if (strlen(config.Zendure->Secret) != 32) {
         DTU_LOGE("Invalid secret length (expected 32 characters)!");
         return false;
     }
 
-    if (strlen(config.Battery.Zendure.Server) < 4) {
-        DTU_LOGE("Invalid server '%s'!", config.Battery.Zendure.Server);
+    if (strlen(config.Zendure->Server) < 4) {
+        DTU_LOGE("Invalid server '%s'!", config.Zendure->Server);
         return false;
     }
 
-    if (config.Battery.Zendure.Port < 1) {
-        DTU_LOGE("Invalid port '%" PRIu16 "'!", config.Battery.Zendure.Port);
+    if (config.Zendure->Port < 1) {
+        DTU_LOGE("Invalid port '%" PRIu16 "'!", config.Zendure->Port);
         return false;
     }
 
-    auto size = strlen(config.Battery.Zendure.ClientId);
+    auto size = strlen(config.Zendure->ClientId);
     if (size < 2 || size > ZENDURE_MAX_CLIENTID_STRLEN) {
-        DTU_LOGE("Invalid client id '%s'!", config.Battery.Zendure.ClientId);
+        DTU_LOGE("Invalid client id '%s'!", config.Zendure->ClientId);
         return false;
     }
 
     if (!Provider::init()) { return false; }
 
+    DTU_LOGD("ZendureMqttProvider, UID: 0x%" PRIX32 ", Index: %" PRIu32, _stats->getBatteryUid(), _stats->getBatteryIndex());
+
     // store device ID as we will need them for checking when receiving messages
-    setTopics(config.Battery.Zendure.AppKey, config.Battery.Zendure.DeviceId);
+    setTopics(config.Zendure->AppKey, config.Zendure->DeviceId);
 
     // disable charge through cycle if disable by config
     setChargeThroughState(ChargeThroughState::Disabled);
@@ -56,7 +58,7 @@ bool ZendureMqttProvider::init()
     DTU_LOGI("INIT CLOUD CONNECTION");
 
     using std::placeholders::_1;
-    NetworkSettings.onEvent(std::bind(&ZendureMqttProvider::NetworkEvent, this, _1), network_event::NETWORK_EVENT_MAX, ZENDURE_NETWORK_EVENT_NAME);
+    NetworkSettings.onEvent(std::bind(&ZendureMqttProvider::NetworkEvent, this, _1), network_event::NETWORK_EVENT_MAX, ZENDURE_NETWORK_EVENT_NAME + _stats->getBatteryUid());
     createMqttClientObject();
     performConnect();
 
@@ -79,7 +81,7 @@ void ZendureMqttProvider::deinit()
     _shutdown = true;
     _mqttReconnectTimer.detach();
 
-    NetworkSettings.deregisterEvent(ZENDURE_NETWORK_EVENT_NAME);
+    NetworkSettings.deregisterEvent(ZENDURE_NETWORK_EVENT_NAME + _stats->getBatteryUid());
 
     Provider::deinit();
 
@@ -214,7 +216,7 @@ void ZendureMqttProvider::processProperties(std::optional<JsonObjectConst>& prop
         _stats->_buzzer = *buzzer == "true";
     }
 
-    _stats->updateSolarInputPower(Utils::getJsonElement<uint16_t>(*props, ZENDURE_REPORT_SOLAR_INPUT_POWER));
+    //_stats->updateSolarInputPower(Utils::getJsonElement<uint16_t>(*props, ZENDURE_REPORT_SOLAR_INPUT_POWER));
 }
 
 void ZendureMqttProvider::processPackDataJson(JsonVariantConst& packDataJson, const String& serial, const uint64_t timestamp)
@@ -257,12 +259,12 @@ bool ZendureMqttProvider::performConnect()
     std::lock_guard<std::mutex> lock(_clientLock);
     if (_mqttClient == nullptr) { return false; }
 
-    const auto& config = Configuration.get();
-    DTU_LOGI("Connecting to Zendure MQTT-Broker at %s:%d...", config.Battery.Zendure.Server, config.Battery.Zendure.Port);
+    auto const& config = _stats->getConfig();
+    DTU_LOGI("Connecting to Zendure MQTT-Broker at %s:%d...", config.Zendure->Server, config.Zendure->Port);
 
-    static_cast<espMqttClient*>(_mqttClient)->setServer(config.Battery.Zendure.Server, config.Battery.Zendure.Port);
-    static_cast<espMqttClient*>(_mqttClient)->setCredentials(config.Battery.Zendure.AppKey, config.Battery.Zendure.Secret);
-    static_cast<espMqttClient*>(_mqttClient)->setClientId(config.Battery.Zendure.ClientId);
+    static_cast<espMqttClient*>(_mqttClient)->setServer(config.Zendure->Server, config.Zendure->Port);
+    static_cast<espMqttClient*>(_mqttClient)->setCredentials(config.Zendure->AppKey, config.Zendure->Secret);
+    static_cast<espMqttClient*>(_mqttClient)->setClientId(config.Zendure->ClientId);
     static_cast<espMqttClient*>(_mqttClient)->setCleanSession(false);
     static_cast<espMqttClient*>(_mqttClient)->onConnect(std::bind(&ZendureMqttProvider::onMqttConnect, this, _1));
     static_cast<espMqttClient*>(_mqttClient)->onDisconnect(std::bind(&ZendureMqttProvider::onMqttDisconnect, this, _1));
@@ -273,7 +275,7 @@ bool ZendureMqttProvider::performConnect()
         return true;
     }
 
-    DTU_LOGE("Failed to connect to Zendure MQTT-Broker at %s:%d.", config.Battery.Zendure.Server, config.Battery.Zendure.Port);
+    DTU_LOGE("Failed to connect to Zendure MQTT-Broker at %s:%d.", config.Zendure->Server, config.Zendure->Port);
     return false;
 }
 
@@ -343,8 +345,8 @@ void ZendureMqttProvider::onMqttDisconnect(espMqttClientTypes::DisconnectReason 
     auto it = reasons.find(reason);
     const char* reasonStr = (it != reasons.end()) ? it->second.data() : "Unknown";
 
-    auto &config = Configuration.get();
-    ESP_LOGW(TAG, "Disconnected from Zendure MQTT-Broker at %s:%d. Reason: %s", config.Battery.Zendure.Server, config.Battery.Zendure.Port, reasonStr);
+    auto const& config = _stats->getConfig();
+    ESP_LOGW(TAG, "Disconnected from Zendure MQTT-Broker at %s:%d. Reason: %s", config.Zendure->Server, config.Zendure->Port, reasonStr);
 
     if (_shutdown) { return; }
 

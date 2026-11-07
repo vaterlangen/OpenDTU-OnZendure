@@ -256,7 +256,7 @@ void Provider::loop()
                 inputPowerDiff, newOutputPowerTarget, *oOutputPower);
 
             // Check whether the battery SoC limit setting is enabled
-            if (config.Battery.Enabled && config.GridCharger.AutoPowerBatterySoCLimitsEnabled) {
+            if (config.Battery->Enabled && config.GridCharger.AutoPowerBatterySoCLimitsEnabled) {
                 uint8_t _batterySoC = Battery.getStats()->getSoC();
                 // Sets power limit to 0 if the BMS reported SoC reaches or exceeds the user configured value
                 if (_batterySoC >= config.GridCharger.AutoPowerStopBatterySoCThreshold) {

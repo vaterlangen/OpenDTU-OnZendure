@@ -48,7 +48,7 @@ void WebApiPowerLimiterClass::onMetaData(AsyncWebServerRequest* request)
     auto& root = response->getRoot();
 
     root["power_meter_enabled"] = config.PowerMeter.Enabled;
-    root["battery_enabled"] = config.Battery.Enabled;
+    root["battery_enabled"] = config.Battery->Enabled;
     root["charge_controller_enabled"] = config.SolarCharger.Enabled;
 
     JsonArray inverters = root["inverters"].to<JsonArray>();
